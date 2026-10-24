@@ -2,28 +2,28 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
-#include "Rope/YJRopeTypes.h"
-#include "YJJumper.generated.h"
+#include "Rope/YJJRopeTypes.h"
+#include "YJJJumper.generated.h"
 
 class UCameraComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
 class UInputAction;
 class UInputMappingContext;
-class UYJRopeSubsystem;
+class UYJJRopeSubsystem;
 struct FInputActionValue;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FYJOnBounceGraded, EYJBounceGrade, Grade, int32, PerfectChain);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FYJJOnBounceGraded, EYJJBounceGrade, Grade, int32, PerfectChain);
 
 // 로프 반동으로 점프하는 플레이어.
-// 이동은 물리 엔진 없이 YJRopeSim 고정 스텝 시뮬레이션으로만 한다.
+// 이동은 물리 엔진 없이 YJJRopeSim 고정 스텝 시뮬레이션으로만 한다.
 UCLASS()
-class YJJJUMP_API AYJJumper : public APawn
+class YJJJUMP_API AYJJJumper : public APawn
 {
 	GENERATED_BODY()
 
 public:
-	AYJJumper();
+	AYJJJumper();
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -31,13 +31,13 @@ public:
 	virtual void NotifyControllerChanged() override;
 
 	UFUNCTION(BlueprintPure, Category = "Jumper")
-	const FYJJumperState& GetSimState() const { return SimState; }
+	const FYJJJumperState& GetSimState() const { return SimState; }
 
 	UPROPERTY(BlueprintAssignable, Category = "Jumper")
-	FYJOnBounceGraded OnBounceGraded;
+	FYJJOnBounceGraded OnBounceGraded;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jumper")
-	FYJRopeTuning Tuning;
+	FYJJRopeTuning Tuning;
 
 	// 가장 낮은 로프보다 이만큼 떨어지면 마지막 로프로 복귀
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jumper")
@@ -68,12 +68,12 @@ private:
 	float ComputeAimX() const;
 
 	void TickSimulation(float DeltaSeconds);
-	void HandleEvents(const FYJSimEvents& Events);
+	void HandleEvents(const FYJJSimEvents& Events);
 	void RecoverFromFall();
 	void SyncVisuals(float DeltaSeconds);
 	void DrawDebugHud() const;
 
-	UYJRopeSubsystem* GetRopes() const;
+	UYJJRopeSubsystem* GetRopes() const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Jumper")
 	TObjectPtr<USceneComponent> Root;
@@ -95,7 +95,7 @@ private:
 	TObjectPtr<UInputMappingContext> InputContext;
 
 	UPROPERTY(VisibleInstanceOnly, Category = "Jumper")
-	FYJJumperState SimState;
+	FYJJJumperState SimState;
 
 	float StepAccumulator = 0.f;
 	float CenterX = 0.f;

@@ -4,19 +4,19 @@
 #include "YJJJumpGameModeBase.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
-#include "Player/YJJumper.h"
-#include "Player/YJPlayerController.h"
-#include "Rope/YJRope.h"
+#include "Player/YJJJumper.h"
+#include "Player/YJJPlayerController.h"
+#include "Rope/YJJRope.h"
 
 AYJJJumpGameModeBase::AYJJJumpGameModeBase()
 {
-	DefaultPawnClass = AYJJumper::StaticClass();
-	PlayerControllerClass = AYJPlayerController::StaticClass();
+	DefaultPawnClass = AYJJJumper::StaticClass();
+	PlayerControllerClass = AYJJPlayerController::StaticClass();
 }
 
 void AYJJJumpGameModeBase::StartPlay()
 {
-	if (bSpawnTestTower && !TActorIterator<AYJRope>(GetWorld()))
+	if (bSpawnTestTower && !TActorIterator<AYJJRope>(GetWorld()))
 	{
 		SpawnTestTower();
 	}
@@ -50,7 +50,7 @@ void AYJJJumpGameModeBase::SpawnTestTower()
 		Params.bDeferConstruction = true;
 
 		const FTransform Transform(FVector(Start.X + OffsetX, Start.Y, Height));
-		if (AYJRope* Rope = World->SpawnActor<AYJRope>(AYJRope::StaticClass(), Transform, Params))
+		if (AYJJRope* Rope = World->SpawnActor<AYJJRope>(AYJJRope::StaticClass(), Transform, Params))
 		{
 			Rope->Width = Width;
 			Rope->FinishSpawning(Transform);

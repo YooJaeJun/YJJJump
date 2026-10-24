@@ -2,26 +2,26 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Rope/YJRopeTypes.h"
-#include "YJRope.generated.h"
+#include "Rope/YJJRopeTypes.h"
+#include "YJJRope.generated.h"
 
 class UStaticMeshComponent;
 
 // 수평으로 걸린 로프. 액터 위치가 로프 중앙, Width만큼 좌우로 뻗는다.
 // 점퍼가 올라타면 접촉점을 꼭짓점으로 V자로 처진다.
 UCLASS()
-class YJJJUMP_API AYJRope : public AActor
+class YJJJUMP_API AYJJRope : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AYJRope();
+	AYJJRope();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	FYJRopeSegment MakeSegment() const;
+	FYJJRopeSegment MakeSegment() const;
 	int32 GetRopeId() const { return RopeId; }
 
 	// 접촉점 X(월드)와 처짐(+아래)

@@ -2,16 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "YJPlayerController.generated.h"
+#include "YJJPlayerController.generated.h"
 
 // 마우스 커서를 보이게 하고 클릭/드래그를 게임 입력으로 받는다
 UCLASS()
-class YJJJUMP_API AYJPlayerController : public APlayerController
+class YJJJUMP_API AYJJPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
 public:
-	AYJPlayerController();
+	AYJJPlayerController();
 
 protected:
 	virtual void BeginPlay() override;

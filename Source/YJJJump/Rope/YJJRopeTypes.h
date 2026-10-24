@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "YJRopeTypes.generated.h"
+#include "YJJRopeTypes.generated.h"
 
 // 게임 평면: X = 좌우, Z = 위아래 (Y는 깊이, 사용하지 않음)
 
 UENUM(BlueprintType)
-enum class EYJJumperMode : uint8
+enum class EYJJJumperMode : uint8
 {
 	Airborne,	// 공중
 	OnRope,		// 로프 위에서 출렁이는 중
@@ -15,7 +15,7 @@ enum class EYJJumperMode : uint8
 };
 
 UENUM(BlueprintType)
-enum class EYJBounceGrade : uint8
+enum class EYJJBounceGrade : uint8
 {
 	None,
 	Miss,
@@ -25,7 +25,7 @@ enum class EYJBounceGrade : uint8
 
 // 반동 손맛 튜닝 값. 단위: cm, 초
 USTRUCT(BlueprintType)
-struct FYJRopeTuning
+struct FYJJRopeTuning
 {
 	GENERATED_BODY()
 
@@ -93,7 +93,7 @@ struct FYJRopeTuning
 };
 
 // 수평 로프 한 줄
-struct FYJRopeSegment
+struct FYJJRopeSegment
 {
 	int32 Id = INDEX_NONE;
 	float MinX = 0.f;
@@ -103,12 +103,12 @@ struct FYJRopeSegment
 
 // 점퍼 한 명의 시뮬레이션 상태. 서버/클라 모두 이 값으로 같은 결과를 낸다
 USTRUCT(BlueprintType)
-struct FYJJumperState
+struct FYJJJumperState
 {
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
-	EYJJumperMode Mode = EYJJumperMode::Airborne;
+	EYJJJumperMode Mode = EYJJJumperMode::Airborne;
 
 	UPROPERTY(BlueprintReadOnly)
 	FVector2f Position = FVector2f::ZeroVector;	// (X, Z)
@@ -144,7 +144,7 @@ struct FYJJumperState
 	bool bHasPendingHorizontal = false;
 
 	UPROPERTY(BlueprintReadOnly)
-	EYJBounceGrade LastGrade = EYJBounceGrade::None;
+	EYJJBounceGrade LastGrade = EYJJBounceGrade::None;
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 PerfectChain = 0;
@@ -160,11 +160,11 @@ struct FYJJumperState
 };
 
 // 한 스텝에서 일어난 일 (연출/UI용)
-struct FYJSimEvents
+struct FYJJSimEvents
 {
 	bool bLanded = false;
 	bool bLaunched = false;
 	bool bRested = false;
 	bool bGraded = false;
-	EYJBounceGrade Grade = EYJBounceGrade::None;
+	EYJJBounceGrade Grade = EYJJBounceGrade::None;
 };

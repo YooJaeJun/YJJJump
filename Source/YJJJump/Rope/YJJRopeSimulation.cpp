@@ -1,25 +1,25 @@
-#include "Rope/YJRopeSimulation.h"
+#include "Rope/YJJRopeSimulation.h"
 
-namespace YJRopeSim
+namespace YJJRopeSim
 {
 	namespace
 	{
-		EYJBounceGrade Classify(const FYJRopeTuning& Tuning, double TimeFromBottom)
+		EYJJBounceGrade Classify(const FYJJRopeTuning& Tuning, double TimeFromBottom)
 		{
 			const double Abs = FMath::Abs(TimeFromBottom);
 			if (Abs <= Tuning.PerfectWindow)
 			{
-				return EYJBounceGrade::Perfect;
+				return EYJJBounceGrade::Perfect;
 			}
 			if (Abs <= Tuning.GoodWindow)
 			{
-				return EYJBounceGrade::Good;
+				return EYJJBounceGrade::Good;
 			}
-			return EYJBounceGrade::Miss;
+			return EYJJBounceGrade::Miss;
 		}
 
 		// 판정 결과를 기록하고 발사 배율을 돌려준다
-		float ApplyGrade(FYJJumperState& State, const FYJRopeTuning& Tuning, EYJBounceGrade Grade, FYJSimEvents& OutEvents)
+		float ApplyGrade(FYJJJumperState& State, const FYJJRopeTuning& Tuning, EYJJBounceGrade Grade, FYJJSimEvents& OutEvents)
 		{
 			State.bGraded = true;
 			State.LastGrade = Grade;
@@ -28,11 +28,11 @@ namespace YJRopeSim
 
 			switch (Grade)
 			{
-			case EYJBounceGrade::Perfect:
+			case EYJJBounceGrade::Perfect:
 				State.PerfectChain++;
 				// 연속 퍼펙트 보너스 (최대 +0.25)
 				return Tuning.PerfectMultiplier + FMath::Min(State.PerfectChain - 1, 5) * 0.05f;
-			case EYJBounceGrade::Good:
+			case EYJJBounceGrade::Good:
 				return Tuning.GoodMultiplier;
 			default:
 				State.PerfectChain = 0;
@@ -40,11 +40,11 @@ namespace YJRopeSim
 			}
 		}
 
-		void Launch(FYJJumperState& State, const FYJRopeTuning& Tuning, FYJSimEvents& OutEvents)
+		void Launch(FYJJJumperState& State, const FYJJRopeTuning& Tuning, FYJJSimEvents& OutEvents)
 		{
 			const float UpSpeed = FMath::Min(-State.DeflectionSpeed * State.PendingLaunchMultiplier, Tuning.MaxLaunchSpeed);
 
-			State.Mode = EYJJumperMode::Airborne;
+			State.Mode = EYJJJumperMode::Airborne;
 			State.Velocity.Y = UpSpeed;
 			if (State.bHasPendingHorizontal)
 			{
@@ -61,7 +61,7 @@ namespace YJRopeSim
 			OutEvents.bLaunched = true;
 		}
 
-		void StepAirborne(FYJJumperState& State, const FYJRopeTuning& Tuning, TConstArrayView<FYJRopeSegment> Ropes, float Dt, FYJSimEvents& OutEvents)
+		void StepAirborne(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float Dt, FYJJSimEvents& OutEvents)
 		{
 			const float PrevZ = State.Position.Y;
 
@@ -74,8 +74,8 @@ namespace YJRopeSim
 			}
 
 			// 위에서 아래로 로프를 통과하면 착지. 여러 개면 가장 높은 로프
-			const FYJRopeSegment* Hit = nullptr;
-			for (const FYJRopeSegment& Rope : Ropes)
+			const FYJJRopeSegment* Hit = nullptr;
+			for (const FYJJRopeSegment& Rope : Ropes)
 			{
 				if (PrevZ >= Rope.Height && State.Position.Y < Rope.Height
 					&& State.Position.X >= Rope.MinX && State.Position.X <= Rope.MaxX
@@ -90,7 +90,7 @@ namespace YJRopeSim
 				return;
 			}
 
-			State.Mode = EYJJumperMode::OnRope;
+			State.Mode = EYJJJumperMode::OnRope;
 			State.RopeId = Hit->Id;
 			State.LastRopeId = Hit->Id;
 			State.RopeHeight = Hit->Height;
@@ -105,12 +105,12 @@ namespace YJRopeSim
 			OutEvents.bLanded = true;
 		}
 
-		void StepOnRope(FYJJumperState& State, const FYJRopeTuning& Tuning, TConstArrayView<FYJRopeSegment> Ropes, float Dt, FYJSimEvents& OutEvents)
+		void StepOnRope(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float Dt, FYJJSimEvents& OutEvents)
 		{
-			const FYJRopeSegment* Rope = FindRope(Ropes, State.RopeId);
+			const FYJJRopeSegment* Rope = FindRope(Ropes, State.RopeId);
 			if (!Rope)
 			{
-				State.Mode = EYJJumperMode::Airborne;
+				State.Mode = EYJJJumperMode::Airborne;
 				return;
 			}
 
@@ -157,7 +157,7 @@ namespace YJRopeSim
 				&& FMath::Abs(State.DeflectionSpeed) < Tuning.RestSpeedThreshold
 				&& FMath::Abs(State.Deflection - RestD) < Tuning.RestDeflectionTolerance)
 			{
-				State.Mode = EYJJumperMode::Resting;
+				State.Mode = EYJJJumperMode::Resting;
 				State.Deflection = RestD;
 				State.DeflectionSpeed = 0.f;
 				State.Velocity = FVector2f::ZeroVector;
@@ -169,7 +169,7 @@ namespace YJRopeSim
 			}
 		}
 
-		void ApplyWalls(FYJJumperState& State, const FYJRopeTuning& Tuning, float CenterX)
+		void ApplyWalls(FYJJJumperState& State, const FYJJRopeTuning& Tuning, float CenterX)
 		{
 			const float MinX = CenterX - Tuning.WallHalfWidth;
 			const float MaxX = CenterX + Tuning.WallHalfWidth;
@@ -186,25 +186,25 @@ namespace YJRopeSim
 		}
 	}
 
-	float RestDeflection(const FYJRopeTuning& Tuning)
+	float RestDeflection(const FYJJRopeTuning& Tuning)
 	{
 		return Tuning.RopeStiffness > 0.f ? Tuning.Gravity / Tuning.RopeStiffness : 0.f;
 	}
 
-	void Step(FYJJumperState& State, const FYJRopeTuning& Tuning, TConstArrayView<FYJRopeSegment> Ropes, float CenterX, FYJSimEvents& OutEvents)
+	void Step(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float CenterX, FYJJSimEvents& OutEvents)
 	{
 		State.SimTime += FixedStep;
 
 		switch (State.Mode)
 		{
-		case EYJJumperMode::Airborne:
+		case EYJJJumperMode::Airborne:
 			StepAirborne(State, Tuning, Ropes, FixedStep, OutEvents);
 			break;
-		case EYJJumperMode::OnRope:
+		case EYJJJumperMode::OnRope:
 			StepOnRope(State, Tuning, Ropes, FixedStep, OutEvents);
 			break;
-		case EYJJumperMode::Resting:
-		case EYJJumperMode::Dragging:
+		case EYJJJumperMode::Resting:
+		case EYJJJumperMode::Dragging:
 			// 입력으로만 변한다
 			break;
 		}
@@ -213,11 +213,11 @@ namespace YJRopeSim
 		State.MaxHeightReached = FMath::Max(State.MaxHeightReached, State.Position.Y);
 	}
 
-	void PressBounce(FYJJumperState& State, const FYJRopeTuning& Tuning, float AimX, FYJSimEvents& OutEvents)
+	void PressBounce(FYJJJumperState& State, const FYJJRopeTuning& Tuning, float AimX, FYJJSimEvents& OutEvents)
 	{
 		const float AimSpeed = FMath::Clamp(AimX, -1.f, 1.f) * Tuning.MaxHorizontalSpeed;
 
-		if (State.Mode == EYJJumperMode::OnRope)
+		if (State.Mode == EYJJJumperMode::OnRope)
 		{
 			State.PendingHorizontalSpeed = AimSpeed;
 			State.bHasPendingHorizontal = true;
@@ -235,7 +235,7 @@ namespace YJRopeSim
 			return;
 		}
 
-		if (State.Mode == EYJJumperMode::Airborne)
+		if (State.Mode == EYJJJumperMode::Airborne)
 		{
 			// 로프를 막 떠난 직후의 늦은 입력은 속도에 바로 반영
 			if (!State.bGraded && State.BottomTime >= 0.0 && State.Velocity.Y > 0.f
@@ -255,19 +255,19 @@ namespace YJRopeSim
 		}
 	}
 
-	bool BeginDrag(FYJJumperState& State)
+	bool BeginDrag(FYJJJumperState& State)
 	{
-		if (State.Mode != EYJJumperMode::Resting)
+		if (State.Mode != EYJJJumperMode::Resting)
 		{
 			return false;
 		}
-		State.Mode = EYJJumperMode::Dragging;
+		State.Mode = EYJJJumperMode::Dragging;
 		return true;
 	}
 
-	void UpdateDrag(FYJJumperState& State, const FYJRopeTuning& Tuning, const FVector2f& DragPixels)
+	void UpdateDrag(FYJJJumperState& State, const FYJJRopeTuning& Tuning, const FVector2f& DragPixels)
 	{
-		if (State.Mode != EYJJumperMode::Dragging)
+		if (State.Mode != EYJJJumperMode::Dragging)
 		{
 			return;
 		}
@@ -281,9 +281,9 @@ namespace YJRopeSim
 		State.bHasPendingHorizontal = true;
 	}
 
-	void ReleaseDrag(FYJJumperState& State, const FYJRopeTuning& Tuning)
+	void ReleaseDrag(FYJJJumperState& State, const FYJJRopeTuning& Tuning)
 	{
-		if (State.Mode != EYJJumperMode::Dragging)
+		if (State.Mode != EYJJJumperMode::Dragging)
 		{
 			return;
 		}
@@ -291,7 +291,7 @@ namespace YJRopeSim
 		// 거의 안 당겼으면 취소
 		if (State.Deflection < RestDeflection(Tuning) + 10.f)
 		{
-			State.Mode = EYJJumperMode::Resting;
+			State.Mode = EYJJJumperMode::Resting;
 			State.Deflection = RestDeflection(Tuning);
 			State.Position.Y = State.RopeHeight - State.Deflection;
 			State.bHasPendingHorizontal = false;
@@ -299,7 +299,7 @@ namespace YJRopeSim
 		}
 
 		// 최저점에서 놓은 것과 같다. 드래그 발사는 타이밍 판정 없음
-		State.Mode = EYJJumperMode::OnRope;
+		State.Mode = EYJJJumperMode::OnRope;
 		State.DeflectionSpeed = 0.f;
 		State.bReachedBottom = true;
 		State.bGraded = true;
@@ -308,9 +308,9 @@ namespace YJRopeSim
 		State.PendingLaunchMultiplier = 1.f;
 	}
 
-	void PlaceOnRope(FYJJumperState& State, const FYJRopeTuning& Tuning, const FYJRopeSegment& Rope, float X)
+	void PlaceOnRope(FYJJJumperState& State, const FYJJRopeTuning& Tuning, const FYJJRopeSegment& Rope, float X)
 	{
-		State.Mode = EYJJumperMode::Resting;
+		State.Mode = EYJJJumperMode::Resting;
 		State.RopeId = Rope.Id;
 		State.LastRopeId = Rope.Id;
 		State.RopeHeight = Rope.Height;
@@ -324,8 +324,8 @@ namespace YJRopeSim
 		State.BottomTime = -1.0;
 	}
 
-	const FYJRopeSegment* FindRope(TConstArrayView<FYJRopeSegment> Ropes, int32 RopeId)
+	const FYJJRopeSegment* FindRope(TConstArrayView<FYJJRopeSegment> Ropes, int32 RopeId)
 	{
-		return Ropes.FindByPredicate([RopeId](const FYJRopeSegment& Rope) { return Rope.Id == RopeId; });
+		return Ropes.FindByPredicate([RopeId](const FYJJRopeSegment& Rope) { return Rope.Id == RopeId; });
 	}
 }

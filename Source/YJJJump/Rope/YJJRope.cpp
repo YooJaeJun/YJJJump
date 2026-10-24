@@ -1,11 +1,11 @@
-#include "Rope/YJRope.h"
-#include "Rope/YJRopeSubsystem.h"
+#include "Rope/YJJRope.h"
+#include "Rope/YJJRopeSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "UObject/ConstructorHelpers.h"
 
-AYJRope::AYJRope()
+AYJJRope::AYJJRope()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -31,37 +31,37 @@ AYJRope::AYJRope()
 	}
 }
 
-void AYJRope::OnConstruction(const FTransform& Transform)
+void AYJJRope::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 	ClearContact();
 }
 
-void AYJRope::BeginPlay()
+void AYJJRope::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UYJRopeSubsystem* Ropes = GetWorld()->GetSubsystem<UYJRopeSubsystem>())
+	if (UYJJRopeSubsystem* Ropes = GetWorld()->GetSubsystem<UYJJRopeSubsystem>())
 	{
 		RopeId = Ropes->RegisterRope(this);
 	}
 	ClearContact();
 }
 
-void AYJRope::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void AYJJRope::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UYJRopeSubsystem* Ropes = GetWorld()->GetSubsystem<UYJRopeSubsystem>())
+	if (UYJJRopeSubsystem* Ropes = GetWorld()->GetSubsystem<UYJJRopeSubsystem>())
 	{
 		Ropes->UnregisterRope(this);
 	}
 	Super::EndPlay(EndPlayReason);
 }
 
-FYJRopeSegment AYJRope::MakeSegment() const
+FYJJRopeSegment AYJJRope::MakeSegment() const
 {
 	const FVector3f Center(GetActorLocation());
 
-	FYJRopeSegment Segment;
+	FYJJRopeSegment Segment;
 	Segment.Id = RopeId;
 	Segment.MinX = Center.X - Width * 0.5f;
 	Segment.MaxX = Center.X + Width * 0.5f;
@@ -69,17 +69,17 @@ FYJRopeSegment AYJRope::MakeSegment() const
 	return Segment;
 }
 
-void AYJRope::SetContact(float ContactX, float Deflection)
+void AYJJRope::SetContact(float ContactX, float Deflection)
 {
 	UpdateVisual(ContactX, FMath::Max(Deflection, 0.f));
 }
 
-void AYJRope::ClearContact()
+void AYJJRope::ClearContact()
 {
 	UpdateVisual(GetActorLocation().X, 0.f);
 }
 
-void AYJRope::UpdateVisual(float ContactX, float Deflection)
+void AYJJRope::UpdateVisual(float ContactX, float Deflection)
 {
 	const FVector Center = GetActorLocation();
 	const FVector LeftAnchor(Center.X - Width * 0.5f, Center.Y, Center.Z);
@@ -90,7 +90,7 @@ void AYJRope::UpdateVisual(float ContactX, float Deflection)
 	PlaceStrand(RightStrand, Contact, RightAnchor);
 }
 
-void AYJRope::PlaceStrand(UStaticMeshComponent* Strand, const FVector& From, const FVector& To) const
+void AYJJRope::PlaceStrand(UStaticMeshComponent* Strand, const FVector& From, const FVector& To) const
 {
 	const FVector Delta = To - From;
 	const double Length = FMath::Max(Delta.Size(), 1.0);

@@ -1,11 +1,11 @@
-#include "Player/YJPlayerController.h"
+#include "Player/YJJPlayerController.h"
 
-AYJPlayerController::AYJPlayerController()
+AYJJPlayerController::AYJJPlayerController()
 {
 	bShowMouseCursor = true;
 }
 
-void AYJPlayerController::BeginPlay()
+void AYJJPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
