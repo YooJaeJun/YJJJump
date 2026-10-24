@@ -1,0 +1,170 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "YJRopeTypes.generated.h"
+
+// 게임 평면: X = 좌우, Z = 위아래 (Y는 깊이, 사용하지 않음)
+
+UENUM(BlueprintType)
+enum class EYJJumperMode : uint8
+{
+	Airborne,	// 공중
+	OnRope,		// 로프 위에서 출렁이는 중
+	Resting,	// 로프 위에 멈춤 - 드래그 가능
+	Dragging,	// 드래그로 로프를 당기는 중
+};
+
+UENUM(BlueprintType)
+enum class EYJBounceGrade : uint8
+{
+	None,
+	Miss,
+	Good,
+	Perfect,
+};
+
+// 반동 손맛 튜닝 값. 단위: cm, 초
+USTRUCT(BlueprintType)
+struct FYJRopeTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	float Gravity = 2400.f;
+
+	// 로프 스프링 강성 (1/s^2). 발사 속도 ≈ 처짐 * sqrt(강성)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float RopeStiffness = 180.f;
+
+	// 로프 감쇠 (1/s). 클수록 튕길 때마다 에너지를 많이 잃음
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float RopeDamping = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float MaxDeflection = 220.f;
+
+	// 로프 위에서 좌우 속도 감쇠 (1/s)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float RopeHorizontalFriction = 8.f;
+
+	// 이 속도/처짐 이하로 떨어지면 정지 상태로 전환
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float RestSpeedThreshold = 25.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float RestDeflectionTolerance = 6.f;
+
+	// 드래그: 화면 픽셀 -> 로프 처짐(cm)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
+	float DragPixelsToDeflection = 0.6f;
+
+	// 드래그: 좌우 픽셀 -> 발사 좌우 속도(cm/s). 당긴 반대 방향으로 날아감
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
+	float DragPixelsToHorizontalSpeed = 6.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
+	float MaxHorizontalSpeed = 1400.f;
+
+	// 최저점 기준 판정 윈도우 (초)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float PerfectWindow = 0.06f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float GoodWindow = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float PerfectMultiplier = 1.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float GoodMultiplier = 1.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float MissMultiplier = 0.9f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float MaxLaunchSpeed = 7000.f;
+
+	// 좌우 벽 (중심 X 기준 반폭). 벽에 부딪히면 튕겨 나옴
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World")
+	float WallHalfWidth = 900.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World")
+	float WallRestitution = 0.6f;
+};
+
+// 수평 로프 한 줄
+struct FYJRopeSegment
+{
+	int32 Id = INDEX_NONE;
+	float MinX = 0.f;
+	float MaxX = 0.f;
+	float Height = 0.f;
+};
+
+// 점퍼 한 명의 시뮬레이션 상태. 서버/클라 모두 이 값으로 같은 결과를 낸다
+USTRUCT(BlueprintType)
+struct FYJJumperState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	EYJJumperMode Mode = EYJJumperMode::Airborne;
+
+	UPROPERTY(BlueprintReadOnly)
+	FVector2f Position = FVector2f::ZeroVector;	// (X, Z)
+
+	UPROPERTY(BlueprintReadOnly)
+	FVector2f Velocity = FVector2f::ZeroVector;
+
+	// 로프 접촉 정보 (OnRope/Resting/Dragging)
+	UPROPERTY(BlueprintReadOnly)
+	int32 RopeId = INDEX_NONE;
+
+	UPROPERTY(BlueprintReadOnly)
+	float RopeHeight = 0.f;
+
+	// 아래로 처진 양 (+) 과 그 속도
+	UPROPERTY(BlueprintReadOnly)
+	float Deflection = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float DeflectionSpeed = 0.f;
+
+	// 시뮬레이션 시간 (초)
+	UPROPERTY(BlueprintReadOnly)
+	double SimTime = 0.0;
+
+	// 타이밍 판정
+	double LastPressTime = -1.0;	// 아직 판정에 쓰이지 않은 입력
+	double BottomTime = -1.0;		// 이번 접촉의 최저점 시각
+	bool bReachedBottom = false;
+	bool bGraded = false;			// 이번 반동에서 판정이 끝났는지
+	float PendingLaunchMultiplier = 1.f;
+	float PendingHorizontalSpeed = 0.f;
+	bool bHasPendingHorizontal = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	EYJBounceGrade LastGrade = EYJBounceGrade::None;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 PerfectChain = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	float LastLaunchSpeed = 0.f;
+
+	UPROPERTY(BlueprintReadOnly)
+	float MaxHeightReached = 0.f;
+
+	// 마지막으로 착지한 로프 (낙하 시 복귀용)
+	int32 LastRopeId = INDEX_NONE;
+};
+
+// 한 스텝에서 일어난 일 (연출/UI용)
+struct FYJSimEvents
+{
+	bool bLanded = false;
+	bool bLaunched = false;
+	bool bRested = false;
+	bool bGraded = false;
+	EYJBounceGrade Grade = EYJBounceGrade::None;
+};
