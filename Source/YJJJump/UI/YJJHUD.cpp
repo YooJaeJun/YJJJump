@@ -5,6 +5,8 @@
 #include "Engine/Canvas.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Font.h"
+#include "Misc/Paths.h"
+#include "Fonts/CompositeFont.h"
 
 namespace
 {
@@ -57,15 +59,42 @@ void AYJJHUD::DrawHUD()
 	DrawLevelStolenBanner(*Jumper);
 }
 
+TSharedPtr<const FCompositeFont> AYJJHUD::GetGameFont(const UFont* FallbackFont)
+{
+	if (GameFont.IsValid())
+	{
+		return GameFont;
+	}
+
+	// 캐주얼 게임에서 가장 흔한 배민 주아체(OFL). 주아체에 없는 글자는 Roboto로
+	// 커맨드릿에서는 TTF 임포트가 안 돼서 에셋 대신 파일을 직접 읽는다 (패키징 시 DefaultGame.ini에서 스테이징)
+	const FString FontPath = FPaths::ProjectContentDir() / GameFontFile;
+	if (!FPaths::FileExists(FontPath))
+	{
+		return nullptr;
+	}
+
+	TSharedRef<FCompositeFont> Composite = MakeShared<FCompositeFont>();
+	Composite->DefaultTypeface.Fonts.Add(FTypefaceEntry(TEXT("Regular"), FontPath, EFontHinting::Default, EFontLoadingPolicy::LazyLoad));
+	if (const FCompositeFont* Fallback = FallbackFont ? FallbackFont->GetCompositeFont() : nullptr)
+	{
+		Composite->FallbackTypeface.Typeface = Fallback->DefaultTypeface;
+	}
+	GameFont = Composite;
+	return GameFont;
+}
+
 void AYJJHUD::DrawLabel(const FString& Text, float X, float Y, float Size, const FLinearColor& Color, EAlign Align, float Outline, bool bVerticalCenter)
 {
-	// FCanvasTextItem은 UFont가 있어야 그려진다. 엔진 Roboto(한글 폴백 포함)의 Bold 서체
+	// FCanvasTextItem은 UFont가 있어야 그려진다 (유효성/캐시 종류 판단용). 실제 글꼴은 주아체 컴포지트
 	static const UFont* BaseFont = LoadObject<UFont>(nullptr, TEXT("/Engine/EngineFonts/Roboto.Roboto"));
 	if (!BaseFont)
 	{
 		return;
 	}
-	FSlateFontInfo Font(BaseFont, FMath::Max(FMath::RoundToInt(S(Size)), 6), TEXT("Bold"));
+	const int32 FontSize = FMath::Max(FMath::RoundToInt(S(Size)), 6);
+	const TSharedPtr<const FCompositeFont> Composite = GetGameFont(BaseFont);
+	FSlateFontInfo Font = Composite.IsValid() ? FSlateFontInfo(Composite, FontSize) : FSlateFontInfo(BaseFont, FontSize, TEXT("Bold"));
 	if (Outline > 0.f)
 	{
 		Font.OutlineSettings.OutlineSize = FMath::Max(FMath::RoundToInt(S(Outline)), 1);
@@ -73,6 +102,7 @@ void AYJJHUD::DrawLabel(const FString& Text, float X, float Y, float Size, const
 	}
 
 	FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(Text), Font, Color);
+	Item.Font = BaseFont;
 	Item.bCentreX = Align == EAlign::Center;
 	Item.bCentreY = bVerticalCenter;
 	Canvas->DrawItem(Item);
@@ -204,7 +234,7 @@ void AYJJHUD::DrawAttackChip(const AYJJJumper& Jumper)
 void AYJJHUD::DrawSpeedometer(const AYJJJumper& Jumper)
 {
 	const float Speed = Jumper.GetSpeedKmh();
-	const float Heat = FMath::Clamp(Speed / 3000.f, 0.f, 1.f);
+	const float Heat = FMath::Clamp(Speed / 550.f, 0.f, 1.f);
 	const FLinearColor Color = FLinearColor::LerpUsingHSV(FLinearColor::White, Red, Heat);
 
 	const float W = S(240.f);
@@ -214,7 +244,7 @@ void AYJJHUD::DrawSpeedometer(const AYJJJumper& Jumper)
 
 	DrawPanel(X, Y, W, H, FLinearColor(0.15f, 0.12f, 0.2f, 0.85f));
 	// 빠를수록 불꽃 아이콘이 늘어난다
-	const int32 Flames = FMath::Clamp(FMath::FloorToInt(Speed / 1000.f), 0, 3);
+	const int32 Flames = FMath::Clamp(FMath::FloorToInt(Speed / 180.f), 0, 3);
 	for (int32 Index = 0; Index < Flames; ++Index)
 	{
 		DrawIcon(FlameTexture, X + W - S(34.f) * (Index + 1) - S(6.f), Y - S(30.f), S(30.f));
@@ -266,7 +296,7 @@ void AYJJHUD::DrawSpeedLines(const AYJJJumper& Jumper)
 {
 	// 빠를수록 화면에 세로 속도선이 지나간다 (과하지 않게)
 	const float Speed = Jumper.GetSpeedKmh();
-	const float Intensity = FMath::Clamp((Speed - 400.f) / 2600.f, 0.f, 1.f);
+	const float Intensity = FMath::Clamp((Speed - 150.f) / 400.f, 0.f, 1.f);
 	if (Intensity <= 0.f || Jumper.GetSimState().Mode != EYJJJumperMode::Airborne)
 	{
 		return;

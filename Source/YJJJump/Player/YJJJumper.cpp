@@ -381,12 +381,19 @@ void AYJJJumper::Tick(float DeltaSeconds)
 		}
 	}
 
-	if (CVarAutoPlay.GetValueOnGameThread() != 0)
+	// 처치 순간 히트스톱: 장수풍뎅이가 잠깐 멈추고 몬스터 처치 연출만 움직인다
+	if (HitStopTime > 0.f)
 	{
-		TickAutoPlay(DeltaSeconds);
+		HitStopTime = FMath::Max(HitStopTime - DeltaSeconds, 0.f);
 	}
-
-	TickSimulation(DeltaSeconds);
+	else
+	{
+		if (CVarAutoPlay.GetValueOnGameThread() != 0)
+		{
+			TickAutoPlay(DeltaSeconds);
+		}
+		TickSimulation(DeltaSeconds);
+	}
 	RecoverFromFall();
 	SyncVisuals(DeltaSeconds);
 	TickPopups(DeltaSeconds);
@@ -462,7 +469,10 @@ void AYJJJumper::FinishDash()
 
 	if (Result.bKilled)
 	{
-		AddShake(SimState.SpeedScale > 4.f ? 0.f : 0.25f);
+		AddShake(0.25f);
+		HitStopTime = HitStopDuration;
+		// 히트스톱 동안 남은 고정 스텝을 버려서 멈췄다 이어질 때 순간이동하지 않게
+		StepAccumulator = 0.f;
 		AddPopup(HitLocation, FString::Printf(TEXT("+%d"), Result.ScoreGained), PerfectColor, 1.3f);
 		if (Result.LevelsGained > 0)
 		{

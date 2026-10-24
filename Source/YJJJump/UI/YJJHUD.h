@@ -6,6 +6,8 @@
 
 class AYJJJumper;
 class UTexture2D;
+class UFont;
+struct FCompositeFont;
 
 // 게임 HUD. 9-슬라이스 패널 + 픽셀 아이콘 + 굵은 외곽선 글자로 그린다 (Canvas, 위젯 에셋 없음)
 UCLASS()
@@ -36,7 +38,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "HUD")
 	TSoftObjectPtr<UTexture2D> BaldEagleTexture;
 
+	// HUD 글꼴 TTF (Content 기준 상대 경로). 배민 주아체, SIL OFL 1.1 (같은 폴더 OFL.txt)
+	UPROPERTY(EditAnywhere, Category = "HUD")
+	FString GameFontFile = TEXT("YJJJump/Fonts/Jua-Regular.ttf");
+
 private:
+	TSharedPtr<const FCompositeFont> GetGameFont(const UFont* FallbackFont);
+	TSharedPtr<const FCompositeFont> GameFont;
+
 	enum class EAlign : uint8 { Left, Center };
 
 	void DrawSpeedLines(const AYJJJumper& Jumper);

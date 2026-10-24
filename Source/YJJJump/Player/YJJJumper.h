@@ -130,6 +130,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	float CameraFollowSpeed = 10.f;
 
+	// 처치 순간 멈추는 시간 (초)
+	UPROPERTY(EditAnywhere, Category = "Visual")
+	float HitStopDuration = 0.14f;
+
 	// 화면 왼쪽 위 디버그 텍스트 (HUD와 별개)
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bShowDebugText = false;
@@ -196,6 +200,7 @@ private:
 
 	EYJJTutorialStep TutorialStep = EYJJTutorialStep::Done;
 	float LevelStolenBannerTime = 0.f;
+	float HitStopTime = 0.f;
 
 	float StepAccumulator = 0.f;
 	float CenterX = 0.f;

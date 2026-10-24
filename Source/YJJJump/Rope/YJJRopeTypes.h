@@ -30,15 +30,15 @@ struct FYJJRopeTuning
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
-	float Gravity = 2400.f;
+	float Gravity = 1300.f;
 
 	// 로프 스프링 강성 (1/s^2). 발사 속도 ≈ 처짐 * sqrt(강성)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RopeStiffness = 180.f;
+	float RopeStiffness = 90.f;
 
 	// 로프 감쇠 (1/s). 클수록 튕길 때마다 에너지를 많이 잃음
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RopeDamping = 1.5f;
+	float RopeDamping = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
 	float MaxDeflection = 260.f;
@@ -73,25 +73,25 @@ struct FYJJRopeTuning
 	float GoodWindow = 0.15f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float PerfectMultiplier = 1.35f;
+	float PerfectMultiplier = 1.3f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float GoodMultiplier = 1.15f;
+	float GoodMultiplier = 1.12f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
 	float MissMultiplier = 0.9f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float MaxLaunchSpeed = 400000.f;
+	float MaxLaunchSpeed = 16000.f;
 
 	// 속도감: 발사 속도가 이 값의 몇 배인지(SpeedScale)만큼 중력은 s배, 로프 강성은 s^2배.
 	// 한 번 비행하는 시간은 거의 그대로인데 속도와 높이는 s배로 커져서 점점 미친 듯이 빨라진다
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
-	float SpeedReference = 2500.f;
+	float SpeedReference = 2000.f;
 
 	// 이번 비행에서 잡은 몬스터 1마리당 다음 발사 속도 보너스 (최대 KillComboMax마리)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
-	float KillComboLaunchBonus = 0.04f;
+	float KillComboLaunchBonus = 0.02f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
 	int32 KillComboMax = 10;
@@ -208,6 +208,7 @@ struct FYJJJumperState
 	FVector2f DashFrom = FVector2f::ZeroVector;
 	FVector2f DashTo = FVector2f::ZeroVector;
 	FVector2f DashSavedVelocity = FVector2f::ZeroVector;
+	double DashReadyTime = 0.0;	// 이 시각(SimTime)부터 다음 돌진 가능
 
 	bool IsDashing() const { return DashMobId != INDEX_NONE; }
 };

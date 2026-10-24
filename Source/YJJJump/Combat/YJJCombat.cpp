@@ -47,7 +47,7 @@ namespace YJJCombat
 
 	bool CanDashTo(const FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget& Mob)
 	{
-		if (State.Mode != EYJJJumperMode::Airborne || State.IsDashing() || Mob.Health <= 0.f)
+		if (State.Mode != EYJJJumperMode::Airborne || State.IsDashing() || Mob.Health <= 0.f || State.SimTime < State.DashReadyTime)
 		{
 			return false;
 		}
@@ -94,6 +94,7 @@ namespace YJJCombat
 		State.Velocity = State.DashSavedVelocity;
 		State.DashMobId = INDEX_NONE;
 		State.DashTimeLeft = 0.f;
+		State.DashReadyTime = State.SimTime + Tuning.DashCooldown;
 
 		if (!Mob || Mob->Health <= 0.f)
 		{

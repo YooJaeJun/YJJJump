@@ -122,13 +122,16 @@ def bald_head(c, cx, cy, r, skin="#F4B4A0"):
 # 이하 아트는 일부러 병맛 / 초딩 취향. 귀여우면 실패.
 
 
-def make_bald_sparrow():
-    # 대머리 참새: 머리카락 세 가닥, 눈 밑 다크서클, 콧수염
+def make_bald_sparrow(flap=False):
+    # 대머리 참새: 머리카락 세 가닥, 눈 밑 다크서클, 콧수염. flap=True면 날개를 위로 친 프레임
     c = Canvas(56, 48)
     c.ellipse(24, 30, 16, 12, hex_color("#8A5A34"))
     c.ellipse(26, 34, 10, 7, hex_color("#E6CFA8"))
     c.polygon([(6, 26), (0, 20), (2, 30), (10, 32)], hex_color("#5E3A1E"))
-    c.polygon([(16, 24), (26, 20), (24, 32)], hex_color("#6E4526"))
+    if flap:
+        c.polygon([(16, 24), (20, 6), (30, 10), (26, 24)], hex_color("#6E4526"))
+    else:
+        c.polygon([(16, 24), (26, 20), (24, 32)], hex_color("#6E4526"))
     bald_head(c, 38, 18, 11)
     # 퀭한 눈 + 다크서클
     c.ellipse(41, 17, 3, 2.5, hex_color("#FFFFFF"))
@@ -266,7 +269,7 @@ def make_beetle():
     return c
 
 
-def make_bald_eagle():
+def make_bald_eagle(flap=False):
     # 대머리 독수리 (레벨 도둑). 냥코 대전쟁의 근육다리 냥처럼 쓸데없이 긴 다리 + 선글라스.
     c = Canvas(84, 108)
     skin = hex_color("#FFE0D2")
@@ -283,10 +286,14 @@ def make_bald_eagle():
     # 몸통 (갈색 깃털) + 흰 목털
     c.ellipse(41, 58, 18, 14, feather)
     c.ellipse(41, 44, 13, 6, hex_color("#FFFFFF"))
-    # 날개 팔짱 (막대 팔 대신 날개)
-    c.polygon([(24, 50), (12, 62), (30, 64)], hex_color("#3E2614"))
-    c.polygon([(58, 50), (70, 62), (52, 64)], hex_color("#3E2614"))
-    line(c, 26, 60, 56, 60, hex_color("#2A190C"), 2)
+    # 날개: 평소엔 팔짱, flap 프레임엔 만세하듯 위로 펄럭
+    if flap:
+        c.polygon([(26, 50), (4, 30), (2, 40), (24, 58)], hex_color("#3E2614"))
+        c.polygon([(56, 50), (78, 30), (80, 40), (58, 58)], hex_color("#3E2614"))
+    else:
+        c.polygon([(24, 50), (12, 62), (30, 64)], hex_color("#3E2614"))
+        c.polygon([(58, 50), (70, 62), (52, 64)], hex_color("#3E2614"))
+        line(c, 26, 60, 56, 60, hex_color("#2A190C"), 2)
     # 대머리 (번들) + 머리카락 세 가닥
     c.ellipse(42, 26, 17, 17, skin)
     c.ellipse(35, 15, 5, 2.5, hex_color("#FFFFFF"))
@@ -354,7 +361,9 @@ def make_ui_flame():
 ART = {
     "T_Beetle": make_beetle,
     "T_MobBaldSparrow": make_bald_sparrow,
+    "T_MobBaldSparrow_Flap": lambda: make_bald_sparrow(flap=True),
     "T_MobBaldEagle": make_bald_eagle,
+    "T_MobBaldEagle_Flap": lambda: make_bald_eagle(flap=True),
     "T_Impact": make_impact,
     "T_CloudButt": make_cloud_butt,
     "T_Rope": make_rope,

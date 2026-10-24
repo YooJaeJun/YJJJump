@@ -32,7 +32,11 @@ struct FYJJCombatTuning
 	float TapTolerance = 70.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0.01"))
-	float DashDuration = 0.07f;
+	float DashDuration = 0.2f;
+
+	// 돌진이 끝난 뒤 다음 돌진까지 쉬는 시간 (연타로 정신없지 않게)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0"))
+	float DashCooldown = 0.35f;
 
 	// 공격력 = (1 + 레벨당 증가 * (Lv-1)) * 판정 배율 * 연속 퍼펙트 * 속도 배율^지수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")

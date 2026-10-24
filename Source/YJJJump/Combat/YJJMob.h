@@ -46,8 +46,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
 	float MaxMoveRange = 1.0e6f;
 
+	bool IsDying() const { return bDying; }
+
 private:
 	void UpdateVisualScale();
+	// 처치 연출: 잠깐 멈춰 번쩍이며 떨다가(히트스톱) 빙글빙글 날아가며 사라진다
+	void BeginDeath();
+	void TickDeath(float DeltaSeconds);
+
+	bool bDying = false;
+	float DeathAge = 0.f;
+	float DeathSpin = 1.f;
 
 	UPROPERTY(VisibleAnywhere, Category = "Mob")
 	TObjectPtr<USceneComponent> Root;

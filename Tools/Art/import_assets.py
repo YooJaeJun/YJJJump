@@ -31,7 +31,9 @@ SPRITE_MATERIAL = "/Paper2D/MaskedUnlitSpriteMaterial.MaskedUnlitSpriteMaterial"
 TEXTURES = {
     "T_Beetle": False,
     "T_MobBaldSparrow": False,
+    "T_MobBaldSparrow_Flap": False,
     "T_MobBaldEagle": False,
+    "T_MobBaldEagle_Flap": False,
     "T_Impact": False,
     "T_CloudButt": False,
     "T_Rope": False,
@@ -45,9 +47,9 @@ TEXTURES = {
 }
 
 MOBS = [
-    dict(name="DA_Mob_BaldSparrow", sprite="SPR_MobBaldSparrow", display="대머리 참새",
+    dict(name="DA_Mob_BaldSparrow", sprite="SPR_MobBaldSparrow", flap="SPR_MobBaldSparrow_Flap", flap_interval=0.12, display="대머리 참새",
          health=1.0, radius=80.0, score=50, xp=1, width=190.0, movement="HOVER", move_range=40.0, period=1.6),
-    dict(name="DA_Mob_BaldEagle", sprite="SPR_MobBaldEagle", display="대머리 독수리",
+    dict(name="DA_Mob_BaldEagle", sprite="SPR_MobBaldEagle", flap="SPR_MobBaldEagle_Flap", flap_interval=0.22, display="대머리 독수리",
          health=4.0, radius=120.0, score=250, xp=6, width=300.0, movement="PATROL", move_range=320.0, period=3.5),
 ]
 
@@ -143,6 +145,8 @@ def make_mob(spec, sprites):
     mob.set_editor_property("xp_value", spec["xp"])
     mob.set_editor_property("sprite", sprites[spec["sprite"]])
     mob.set_editor_property("sprite_width", spec["width"])
+    mob.set_editor_property("flap_sprite", sprites[spec["flap"]])
+    mob.set_editor_property("flap_interval", spec["flap_interval"])
     mob.set_editor_property("movement", getattr(unreal.YJJMobMovement, spec["movement"]))
     mob.set_editor_property("move_range", spec["move_range"])
     mob.set_editor_property("move_period", spec["period"])

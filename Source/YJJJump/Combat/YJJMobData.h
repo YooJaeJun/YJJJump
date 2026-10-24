@@ -33,6 +33,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
 	TObjectPtr<UPaperSprite> Sprite;
 
+	// 날갯짓 두 번째 프레임 (Sprite와 번갈아 보여준다)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
+	TObjectPtr<UPaperSprite> FlapSprite;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual", meta = (ClampMin = "0.02"))
+	float FlapInterval = 0.15f;
+
 	// 화면에 보이는 너비 (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual", meta = (ClampMin = "1"))
 	float SpriteWidth = 120.f;
