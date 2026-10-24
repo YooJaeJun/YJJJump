@@ -64,18 +64,21 @@ class Canvas:
 
         self.fill(inside, color)
 
-    def outline(self, color=OUTLINE):
-        """불투명 픽셀 바깥쪽에 1px 테두리."""
-        edge = []
-        for y in range(self.height):
-            for x in range(self.width):
-                if self.pixels[y][x][3] == 0:
-                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                        if self.get(x + dx, y + dy)[3] > 0 and self.get(x + dx, y + dy) != color:
-                            edge.append((x, y))
-                            break
-        for x, y in edge:
-            self.pixels[y][x] = color
+    def outline(self, color=OUTLINE, thickness=1):
+        """불투명 픽셀 바깥쪽에 테두리. thickness 2 이상이면 냥코 대전쟁처럼 굵게."""
+        for step in range(thickness):
+            edge = []
+            for y in range(self.height):
+                for x in range(self.width):
+                    if self.pixels[y][x][3] == 0:
+                        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                            neighbor = self.get(x + dx, y + dy)
+                            # 첫 줄은 그림 바깥에만, 이후 줄은 이미 그은 테두리 바깥에도
+                            if neighbor[3] > 0 and (step > 0 or neighbor != color):
+                                edge.append((x, y))
+                                break
+            for x, y in edge:
+                self.pixels[y][x] = color
 
     def save(self, path):
         raw = bytearray()
@@ -119,71 +122,6 @@ def bald_head(c, cx, cy, r, skin="#F4B4A0"):
 # 이하 아트는 일부러 병맛 / 초딩 취향. 귀여우면 실패.
 
 
-def make_beetle():
-    # 주인공: Lv 999Gp였던 장수풍뎅이. 두 발로 서는 열혈 꼬마 스타일.
-    # 징그럽지 않게 다리는 둘, 머리는 크게(2등신), 멍청한 짝짝이 눈 + 열혈 눈썹 + 빨간 머리띠.
-    # 나중에 투구(머리 위)와 검(앞으로 내민 오른손 주먹)을 붙일 수 있게 비워 둔다.
-    c = Canvas(72, 88)
-    skin = hex_color("#7A4524")        # 번들번들 갈색 피부(갑각)
-    skin_light = hex_color("#B06A3A")
-    shell = hex_color("#2B1A12")       # 등껍질 = 학생복 같은 검은 갑옷
-    shell_light = hex_color("#5A3A26")
-
-    # 신발 (빨간 운동화) + 다리
-    c.rect(24, 70, 30, 80, skin)
-    c.rect(38, 70, 44, 80, skin)
-    c.ellipse(26, 82, 8, 4.5, hex_color("#E5363C"))
-    c.ellipse(42, 82, 8, 4.5, hex_color("#E5363C"))
-    c.rect(19, 83, 34, 86, hex_color("#FFFFFF"))
-    c.rect(35, 83, 50, 86, hex_color("#FFFFFF"))
-    # 몸통: 검은 등껍질 갑옷 + 배
-    c.ellipse(34, 60, 16, 14, shell)
-    c.ellipse(28, 55, 6, 3, shell_light)
-    c.ellipse(36, 64, 9, 8, hex_color("#D9A86C"))
-    c.rect(20, 66, 49, 69, hex_color("#1A0F0A"))
-    c.rect(32, 66, 37, 69, hex_color("#FFD23F"))
-    # 왼팔: 허리에 손 (뒤쪽)
-    line(c, 20, 54, 14, 62, skin, 5)
-    c.circle(16, 64, 3.5, skin)
-    # 오른팔: 앞으로 쭉 내민 주먹 (나중에 검 손잡이 자리)
-    line(c, 46, 54, 58, 56, skin, 5)
-    c.circle(61, 56, 5, skin)
-    c.set(59, 54, skin_light)
-    # 머리 (크게)
-    c.circle(34, 30, 20, skin)
-    c.ellipse(26, 18, 6, 4, skin_light)
-    # 뿔: 이마에서 위로 크게 휜 장수풍뎅이 뿔 (투구 쓰면 뿔이 뚫고 나옴)
-    c.polygon([(36, 12), (42, 12), (48, 0), (52, 2), (47, 6), (44, 4)], hex_color("#3A2216"))
-    c.polygon([(34, 14), (40, 14), (46, 2), (42, 4)], hex_color("#3A2216"))
-    line(c, 40, 10, 45, 2, hex_color("#6E4A30"), 1)
-    # 더듬이 두 가닥 (귀엽게 동그란 끝)
-    line(c, 24, 14, 18, 4, OUTLINE, 1)
-    c.circle(18, 4, 2, skin_light)
-    line(c, 28, 12, 26, 2, OUTLINE, 1)
-    c.circle(26, 2, 2, skin_light)
-    # 열혈 빨간 머리띠 + 휘날리는 끈
-    c.fill(lambda x, y: 20 <= y < 25 and (x - 34) ** 2 + (y - 30) ** 2 <= 20 ** 2, hex_color("#E5363C"))
-    c.polygon([(14, 22), (4, 18), (6, 24)], hex_color("#E5363C"))
-    c.polygon([(14, 24), (2, 28), (6, 30), (15, 26)], hex_color("#C42A31"))
-    # 열혈 눈썹 (화남) + 멍청한 짝짝이 눈 (한쪽 눈동자 딴 데 봄)
-    line(c, 25, 27, 33, 30, OUTLINE, 2.5)
-    line(c, 37, 30, 46, 27, OUTLINE, 2.5)
-    c.ellipse(30, 35, 4.5, 5, hex_color("#FFFFFF"))
-    c.circle(31, 36, 2, hex_color("#000000"))
-    c.ellipse(42, 35, 3.5, 4, hex_color("#FFFFFF"))
-    c.circle(40, 34, 1.5, hex_color("#000000"))
-    # 볼터치 + 소리 지르는 입 (이빨 하나)
-    c.ellipse(23, 41, 3, 2, hex_color("#FF8A8A"))
-    c.ellipse(47, 41, 3, 2, hex_color("#FF8A8A"))
-    c.ellipse(37, 45, 5, 4, hex_color("#5A0E14"))
-    c.ellipse(37, 47, 3, 1.5, hex_color("#E8506A"))
-    c.rect(35, 41, 38, 44, hex_color("#FFFFF0"))
-    # 땀방울 (멍충미)
-    c.ellipse(53, 26, 1.5, 2.5, hex_color("#8FD8FF"))
-    c.outline()
-    return c
-
-
 def make_bald_sparrow():
     # 대머리 참새: 머리카락 세 가닥, 눈 밑 다크서클, 콧수염
     c = Canvas(56, 48)
@@ -204,37 +142,6 @@ def make_bald_sparrow():
     # 다리
     line(c, 22, 41, 20, 47, hex_color("#F0A020"), 1.5)
     line(c, 28, 41, 29, 47, hex_color("#F0A020"), 1.5)
-    c.outline()
-    return c
-
-
-def make_bald_eagle():
-    # 대머리 독수리: 선글라스, 갈고리 부리, 금목걸이, 근육 날개. 레벨 도둑
-    c = Canvas(80, 72)
-    c.ellipse(34, 46, 24, 18, hex_color("#4A2E1A"))
-    # 근육 날개 (알통)
-    c.polygon([(14, 36), (2, 22), (6, 18), (20, 28)], hex_color("#3A2414"))
-    c.circle(8, 18, 6, hex_color("#3A2414"))
-    c.ellipse(26, 40, 9, 6, hex_color("#5E3C24"))
-    # 흰 목털
-    c.ellipse(50, 34, 12, 8, hex_color("#F4F0E6"))
-    for x in range(40, 62, 4):
-        c.polygon([(x, 38), (x + 2, 44), (x + 4, 38)], hex_color("#F4F0E6"))
-    bald_head(c, 54, 22, 13)
-    # 선글라스 + 반짝
-    c.rect(46, 18, 66, 23, hex_color("#101018"))
-    c.rect(55, 18, 57, 21, hex_color("#101018"))
-    c.set(48, 19, hex_color("#FFFFFF"))
-    c.set(60, 19, hex_color("#FFFFFF"))
-    # 갈고리 부리 + 비웃는 입꼬리
-    c.polygon([(64, 24), (78, 26), (79, 32), (74, 30), (66, 30)], hex_color("#F2B21C"))
-    line(c, 66, 30, 72, 29, hex_color("#8A5A10"), 1)
-    # 금목걸이
-    for x in range(42, 62, 2):
-        c.set(x, 43 + (x - 52) ** 2 // 40, hex_color("#FFD23F"))
-    # 다리
-    line(c, 28, 62, 26, 70, hex_color("#F2B21C"), 2)
-    line(c, 38, 62, 40, 70, hex_color("#F2B21C"), 2)
     c.outline()
     return c
 
@@ -306,6 +213,144 @@ def make_sky():
     return c
 
 
+INK = hex_color("#141018")
+
+
+def stick(c, x0, y0, x1, y1, width=3.0):
+    """졸라맨 팔다리: 굵은 검은 막대."""
+    line(c, x0, y0, x1, y1, INK, width)
+
+
+def make_beetle():
+    # 주인공 장수풍뎅이. 레퍼런스: 냥코 대전쟁(흰 얼굴, 점 눈, 굵은 외곽선) + 졸라맨(막대 팔다리) + 열혈 머리띠.
+    # 머리 위(투구)와 앞으로 내민 주먹(검)은 나중에 장비를 붙일 자리.
+    c = Canvas(76, 100)
+    face = hex_color("#FFF7EA")
+    shell = hex_color("#3B2416")
+    shell_shine = hex_color("#8A5A3A")
+
+    # 다리 (막대) + 빨간 운동화
+    stick(c, 33, 74, 29, 90)
+    stick(c, 41, 74, 46, 90)
+    c.ellipse(27, 92, 6, 3.5, hex_color("#E5363C"))
+    c.ellipse(48, 92, 6, 3.5, hex_color("#E5363C"))
+    # 등껍질 (배낭처럼 등에 멘 장수풍뎅이 껍질)
+    c.ellipse(28, 62, 11, 14, shell)
+    line(c, 28, 50, 28, 75, hex_color("#1E120A"), 1)
+    c.ellipse(24, 56, 3, 5, shell_shine)
+    # 몸통 (작고 흰 냥코 몸)
+    c.ellipse(38, 64, 10, 11, face)
+    # 팔: 뒤 팔은 허리에, 앞 팔은 주먹을 쭉 (검 쥘 자리)
+    stick(c, 32, 60, 24, 70)
+    stick(c, 44, 60, 60, 58)
+    c.circle(63, 58, 4, face)
+    # 머리 (크고 흰, 살짝 찌그러진 냥코 얼굴)
+    c.ellipse(38, 34, 23, 20, face)
+    # 장수풍뎅이 뿔: 이마에서 크게 휘어 올라감 (투구 쓰면 뿔만 튀어나옴)
+    c.polygon([(36, 17), (46, 16), (54, 6), (60, 0), (64, 3), (56, 8), (50, 18)], shell)
+    c.polygon([(52, 9), (56, 2), (58, 3), (55, 10)], shell_shine)
+    # 열혈 빨간 머리띠 + 뒤로 휘날리는 끈
+    c.fill(lambda x, y: 21 <= y < 26 and ((x - 38) / 23) ** 2 + ((y - 34) / 20) ** 2 <= 1.0, hex_color("#E5363C"))
+    c.polygon([(16, 23), (6, 17), (5, 22)], hex_color("#E5363C"))
+    c.polygon([(16, 25), (4, 28), (7, 31)], hex_color("#C42A31"))
+    # 냥코식 무표정 점 눈 + 열혈 화난 눈썹
+    c.ellipse(41, 35, 1.6, 2.6, INK)
+    c.ellipse(52, 35, 1.6, 2.6, INK)
+    line(c, 37, 29, 44, 31, INK, 2)
+    line(c, 49, 31, 56, 29, INK, 2)
+    # 소리 지르는 작은 입 + 볼
+    c.polygon([(45, 42), (51, 42), (48, 47)], hex_color("#7A1420"))
+    c.ellipse(36, 41, 2.5, 1.5, hex_color("#FFB0A8"))
+    c.ellipse(58, 40, 2, 1.5, hex_color("#FFB0A8"))
+    c.outline(INK, thickness=2)
+    return c
+
+
+def make_bald_eagle():
+    # 대머리 독수리 (레벨 도둑). 냥코 대전쟁의 근육다리 냥처럼 쓸데없이 긴 다리 + 선글라스.
+    c = Canvas(84, 108)
+    skin = hex_color("#FFE0D2")
+    feather = hex_color("#5A3820")
+    # 쓸데없이 늠름한 다리
+    line(c, 34, 66, 30, 84, skin, 7)
+    line(c, 30, 84, 34, 100, skin, 6)
+    line(c, 48, 66, 52, 84, skin, 7)
+    line(c, 52, 84, 48, 100, skin, 6)
+    for fx in (34, 48):
+        stick(c, fx, 101, fx - 6, 105, 2)
+        stick(c, fx, 101, fx + 6, 105, 2)
+        stick(c, fx, 101, fx, 106, 2)
+    # 몸통 (갈색 깃털) + 흰 목털
+    c.ellipse(41, 58, 18, 14, feather)
+    c.ellipse(41, 44, 13, 6, hex_color("#FFFFFF"))
+    # 날개 팔짱 (막대 팔 대신 날개)
+    c.polygon([(24, 50), (12, 62), (30, 64)], hex_color("#3E2614"))
+    c.polygon([(58, 50), (70, 62), (52, 64)], hex_color("#3E2614"))
+    line(c, 26, 60, 56, 60, hex_color("#2A190C"), 2)
+    # 대머리 (번들) + 머리카락 세 가닥
+    c.ellipse(42, 26, 17, 17, skin)
+    c.ellipse(35, 15, 5, 2.5, hex_color("#FFFFFF"))
+    for i, dx in enumerate((-3, 0, 3)):
+        line(c, 42 + dx, 9, 42 + dx + (i - 1) * 2, 4, INK, 1)
+    # 선글라스 + 반짝
+    c.rect(29, 22, 56, 28, INK)
+    c.set(32, 23, hex_color("#FFFFFF"))
+    c.set(48, 23, hex_color("#FFFFFF"))
+    # 거대 갈고리 부리 + 비웃는 입꼬리
+    c.polygon([(54, 29), (72, 30), (76, 36), (72, 41), (70, 36), (56, 36)], hex_color("#F2B21C"))
+    line(c, 56, 36, 66, 35, hex_color("#8A5A10"), 1)
+    c.outline(INK, thickness=2)
+    return c
+
+
+def make_ui_panel():
+    # UI 9-슬라이스 패널: 둥근 사각형, 굵은 검은 테두리. 색은 HUD에서 틴트
+    c = Canvas(24, 24)
+    def inside(x, y):
+        cx = min(max(x, 6), 18)
+        cy = min(max(y, 6), 18)
+        return (x - cx) ** 2 + (y - cy) ** 2 <= 36
+    c.fill(inside, hex_color("#FFFFFF"))
+    c.fill(lambda x, y: inside(x, y) and y > 15, hex_color("#D8D8D8"))
+    c.outline(INK, thickness=2)
+    return c
+
+
+def make_ui_coin():
+    c = Canvas(16, 16)
+    c.circle(8, 8, 6.5, hex_color("#FFD23F"))
+    c.circle(8, 8, 4.5, hex_color("#FFB000"))
+    c.rect(7, 5, 9, 11, hex_color("#FFF3A0"))
+    c.outline(INK)
+    return c
+
+
+def make_ui_skull():
+    c = Canvas(16, 16)
+    c.circle(8, 7, 6, hex_color("#FFFFFF"))
+    c.rect(5, 10, 11, 14, hex_color("#FFFFFF"))
+    c.circle(6, 7, 1.6, INK)
+    c.circle(10, 7, 1.6, INK)
+    c.set(8, 10, INK)
+    c.outline(INK)
+    return c
+
+
+def make_ui_arrow():
+    c = Canvas(16, 16)
+    c.polygon([(8, 1), (15, 8), (11, 8), (11, 15), (5, 15), (5, 8), (1, 8)], hex_color("#7CF07C"))
+    c.outline(INK)
+    return c
+
+
+def make_ui_flame():
+    c = Canvas(16, 16)
+    c.polygon([(8, 0), (13, 7), (14, 11), (11, 15), (5, 15), (2, 11), (4, 6), (6, 9)], hex_color("#FF5A1F"))
+    c.polygon([(8, 6), (11, 11), (9, 14), (6, 14), (5, 11)], hex_color("#FFD23F"))
+    c.outline(INK)
+    return c
+
+
 ART = {
     "T_Beetle": make_beetle,
     "T_MobBaldSparrow": make_bald_sparrow,
@@ -315,9 +360,12 @@ ART = {
     "T_Rope": make_rope,
     "T_RopePeg": make_rope_peg,
     "T_SkyBackground": make_sky,
+    "T_UI_Panel": make_ui_panel,
+    "T_UI_Coin": make_ui_coin,
+    "T_UI_Skull": make_ui_skull,
+    "T_UI_Arrow": make_ui_arrow,
+    "T_UI_Flame": make_ui_flame,
 }
-
-
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "Generated")
     os.makedirs(out_dir, exist_ok=True)

@@ -32,9 +32,10 @@ static TAutoConsoleVariable<float> CVarAutoPlayDuration(
 	TEXT("yjj.AutoPlayDuration"), 0.f,
 	TEXT("0보다 크면 오토플레이를 이 시간(초) 동안 하고 스크린샷을 남긴 뒤 게임을 종료한다"));
 
-static TAutoConsoleVariable<int32> CVarSkipTutorial(
-	TEXT("yjj.SkipTutorial"), 0,
-	TEXT("1이면 튜토리얼(Lv 999Gp) 없이 Lv 1부터 시작"));
+// 튜토리얼은 기획 보류 중이라 기본은 꺼져 있고 Lv 1부터 시작한다
+static TAutoConsoleVariable<int32> CVarTutorial(
+	TEXT("yjj.Tutorial"), 0,
+	TEXT("1이면 Lv 999Gp 튜토리얼부터 시작 (보류 중인 기능)"));
 
 namespace
 {
@@ -111,7 +112,7 @@ void AYJJJumper::BeginPlay()
 	SimState.MaxHeightReached = Start.Z;
 
 	// 튜토리얼 동안은 Lv 999Gp(구골플렉스) 장수풍뎅이
-	const bool bSkipTutorial = CVarSkipTutorial.GetValueOnGameThread() != 0;
+	const bool bSkipTutorial = CVarTutorial.GetValueOnGameThread() == 0;
 	SimState.bTutorial = !bSkipTutorial;
 	TutorialStep = bSkipTutorial ? EYJJTutorialStep::Done : EYJJTutorialStep::Drag;
 }

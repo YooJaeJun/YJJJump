@@ -37,6 +37,11 @@ TEXTURES = {
     "T_Rope": False,
     "T_RopePeg": False,
     "T_SkyBackground": True,
+    "T_UI_Panel": False,
+    "T_UI_Coin": False,
+    "T_UI_Skull": False,
+    "T_UI_Arrow": False,
+    "T_UI_Flame": False,
 }
 
 MOBS = [

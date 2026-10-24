@@ -107,7 +107,7 @@ public:
 	TSoftObjectPtr<UPaperSprite> BodySprite;
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
-	float BodyWidth = 230.f;
+	float BodyWidth = 280.f;
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> BackgroundSprite;
