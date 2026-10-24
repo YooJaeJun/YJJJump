@@ -25,7 +25,7 @@ if (-not $FFmpeg) { throw "ffmpeg not found" }
 # 로딩 시간 동안은 봇이 안 움직이도록 녹화 시간보다 넉넉히 플레이
 $PlaySeconds = $Seconds + 6
 $Args = @(
-    "`"$Project`"", "-game", "-windowed", "-ResX=$ResX", "-ResY=$ResY", "-nosplash", "-NoSound", "-unattended",
+    "`"$Project`"", "-game", "-windowed", "-ResX=$ResX", "-ResY=$ResY", "-WinX=200", "-WinY=60", "-nosplash", "-NoSound", "-unattended",
     "-ExecCmds=`"yjj.AutoPlay 1, yjj.AutoPlayDuration $PlaySeconds`""
 )
 $Game = Start-Process -FilePath $Editor -ArgumentList $Args -PassThru
