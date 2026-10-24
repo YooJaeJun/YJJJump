@@ -2,7 +2,10 @@
 #include "Combat/YJJMobData.h"
 #include "Combat/YJJMobSubsystem.h"
 #include "Visual/YJJHitEffect.h"
+#include "Visual/YJJSpriteFx.h"
 #include "Visual/YJJSpriteUtils.h"
+#include "YJJAssetPaths.h"
+#include "PaperSprite.h"
 #include "Engine/World.h"
 #include "PaperSpriteComponent.h"
 
@@ -132,52 +135,110 @@ bool AYJJMob::ApplyHit(float Damage)
 	return true;
 }
 
+namespace
+{
+	constexpr float DeathFreezeTime = 0.14f;	// 히트스톱 동안 제자리에서 번쩍이며 떨기
+	constexpr float DeathFlyTime = 0.55f;		// 빙글빙글 날아가기
+}
+
 void AYJJMob::BeginDeath()
 {
 	// 더 이상 탭/스폰 대상이 아니다. 연출이 끝나면 사라진다
 	bDying = true;
 	DeathAge = 0.f;
+	bSpawnedStars = false;
 	if (UYJJMobSubsystem* Mobs = GetWorld()->GetSubsystem<UYJJMobSubsystem>())
 	{
 		Mobs->UnregisterMob(this);
 	}
 
-	const float EffectWidth = (Data ? Data->SpriteWidth : 120.f) * 1.1f;
-	AYJJHitEffect::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, 30.f, 0.f), EffectWidth, FLinearColor(1.f, 0.9f, 0.3f));
+	// 기절 프레임 (X 눈, 혹)
+	if (Data)
+	{
+		Sprite->SetSprite(Data->HitSprite ? Data->HitSprite.Get() : Data->Sprite.Get());
+	}
+
+	const FVector Center = GetActorLocation();
+	const float Width = Data ? Data->SpriteWidth : 120.f;
+	AYJJHitEffect::Spawn(GetWorld(), Center + FVector(0.f, 30.f, 0.f), Width * 1.1f, FLinearColor(1.f, 0.9f, 0.3f));
+
+	// 깃털이 사방으로 빠진다
+	if (UPaperSprite* Feather = YJJSpriteUtils::LoadSprite(YJJAssetPaths::FeatherSprite))
+	{
+		const int32 Count = Data ? Data->DeathFeathers : 6;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const float Angle = UE_TWO_PI * (Index + FMath::FRand() * 0.5f) / FMath::Max(Count, 1);
+			FYJJSpriteFxParams Params;
+			Params.Frames = { Feather };
+			Params.Lifetime = FMath::FRandRange(0.6f, 0.9f);
+			Params.Width = Width * 0.42f;
+			Params.Velocity = FVector(FMath::Cos(Angle), 0.f, FMath::Sin(Angle) + 0.4f) * FMath::FRandRange(350.f, 600.f);
+			Params.Gravity = 900.f;
+			Params.SpinDegreesPerSecond = FMath::FRandRange(-720.f, 720.f);
+			Params.EndScale = 0.6f;
+			AYJJSpriteFx::Spawn(GetWorld(), Center + FVector(0.f, 25.f, 0.f), Params);
+		}
+	}
 
 	// 맞은 반대쪽으로 빙글빙글 날아간다
 	DeathSpin = FMath::RandBool() ? 1.f : -1.f;
-	if (Data && Data->Sprite)
-	{
-		Sprite->SetSprite(Data->Sprite);
-	}
 }
 
 void AYJJMob::TickDeath(float DeltaSeconds)
 {
 	DeathAge += DeltaSeconds;
-	constexpr float FreezeTime = 0.14f;	// 히트스톱 동안은 제자리에서 번쩍번쩍 떨기
-	constexpr float FlyTime = 0.45f;
 
-	if (DeathAge < FreezeTime)
+	if (DeathAge < DeathFreezeTime)
 	{
-		const float Shake = 12.f;
+		const float Shake = 14.f;
 		Sprite->SetRelativeLocation(FVector(FMath::FRandRange(-Shake, Shake), 0.f, FMath::FRandRange(-Shake, Shake)));
-		Sprite->SetRelativeScale3D(FVector(BaseScale * 1.3f * Facing, BaseScale, BaseScale * 1.3f));
+		Sprite->SetRelativeScale3D(FVector(BaseScale * 1.7f * Facing, BaseScale, BaseScale * 1.55f));
 		const bool bFlash = FMath::FloorToInt(DeathAge / 0.035f) % 2 == 0;
-		Sprite->SetSpriteColor(bFlash ? FLinearColor(1.f, 0.25f, 0.25f) : FLinearColor(1.f, 1.f, 0.5f));
+		Sprite->SetSpriteColor(bFlash ? FLinearColor(1.f, 0.3f, 0.3f) : FLinearColor(1.f, 1.f, 0.6f));
 		return;
 	}
 
-	const float T = FMath::Clamp((DeathAge - FreezeTime) / FlyTime, 0.f, 1.f);
-	Sprite->SetRelativeLocation(FVector(DeathSpin * 260.f * T, 0.f, 220.f * T - 500.f * T * T));
-	Sprite->SetRelativeRotation(FRotator(DeathSpin * 720.f * T, 0.f, 0.f));
-	const float Shrink = FMath::Lerp(1.2f, 0.2f, T);
+	const float Width = Data ? Data->SpriteWidth : 120.f;
+	const float T = FMath::Clamp((DeathAge - DeathFreezeTime) / DeathFlyTime, 0.f, 1.f);
+	const FVector Offset(DeathSpin * 300.f * T, 0.f, 260.f * T - 520.f * T * T);
+	Sprite->SetRelativeLocation(Offset);
+	Sprite->SetRelativeRotation(FRotator(DeathSpin * 540.f * T, 0.f, 0.f));
+	const float Shrink = FMath::Lerp(1.55f, 0.9f, T);
 	Sprite->SetRelativeScale3D(FVector(BaseScale * Shrink * Facing, BaseScale, BaseScale * Shrink));
-	Sprite->SetSpriteColor(FLinearColor(0.6f, 0.6f, 0.6f));
+	Sprite->SetSpriteColor(FLinearColor::White);
+
+	// 날아가기 시작할 때 머리 위로 기절 별
+	if (!bSpawnedStars)
+	{
+		bSpawnedStars = true;
+		if (UPaperSprite* Star = YJJSpriteUtils::LoadSprite(YJJAssetPaths::DizzyStarSprite))
+		{
+			for (int32 Index = 0; Index < 3; ++Index)
+			{
+				FYJJSpriteFxParams Params;
+				Params.Frames = { Star };
+				Params.Lifetime = DeathFlyTime;
+				Params.Width = Width * 0.32f;
+				Params.Velocity = FVector(DeathSpin * 300.f / DeathFlyTime * 0.6f + (Index - 1) * 120.f, 0.f, 180.f);
+				Params.SpinDegreesPerSecond = 540.f;
+				Params.EndScale = 0.5f;
+				AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + FVector((Index - 1) * Width * 0.2f, 35.f, Width * 0.45f), Params);
+			}
+		}
+	}
 
 	if (T >= 1.f)
 	{
+		// 마무리 "뿅" 연기
+		FYJJSpriteFxParams Poof;
+		Poof.Frames = YJJSpriteUtils::LoadPoofFrames();
+		Poof.FrameTime = 0.12f;
+		Poof.Lifetime = 0.28f;
+		Poof.Width = Width * 1.5f;
+		Poof.StartScale = 0.7f;
+		Poof.EndScale = 1.2f;
+		AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + Offset + FVector(0.f, 30.f, 0.f), Poof);
 		Destroy();
 	}
 }

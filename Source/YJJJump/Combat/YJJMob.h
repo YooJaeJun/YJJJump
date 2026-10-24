@@ -55,6 +55,7 @@ private:
 	void TickDeath(float DeltaSeconds);
 
 	bool bDying = false;
+	bool bSpawnedStars = false;
 	float DeathAge = 0.f;
 	float DeathSpin = 1.f;
 

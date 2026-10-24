@@ -1,4 +1,5 @@
 #include "Visual/YJJSpriteUtils.h"
+#include "YJJAssetPaths.h"
 #include "PaperSprite.h"
 #include "PaperSpriteComponent.h"
 
@@ -29,5 +30,23 @@ namespace YJJSpriteUtils
 		{
 			Component->SetRelativeScale3D(FVector(Width / Size.X));
 		}
+	}
+
+	UPaperSprite* LoadSprite(const TCHAR* Path)
+	{
+		return LoadObject<UPaperSprite>(nullptr, Path);
+	}
+
+	TArray<TObjectPtr<UPaperSprite>> LoadPoofFrames()
+	{
+		TArray<TObjectPtr<UPaperSprite>> Frames;
+		for (const TCHAR* Path : { YJJAssetPaths::Poof0Sprite, YJJAssetPaths::Poof1Sprite })
+		{
+			if (UPaperSprite* Frame = LoadSprite(Path))
+			{
+				Frames.Add(Frame);
+			}
+		}
+		return Frames;
 	}
 }

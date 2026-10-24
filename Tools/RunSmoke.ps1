@@ -1,4 +1,4 @@
-# 게임을 창 모드로 띄워 오토플레이 봇이 플레이하게 하고, 로그 요약과 스크린샷을 남긴다.
+﻿# 게임을 창 모드로 띄워 오토플레이 봇이 플레이하게 하고, 로그 요약과 스크린샷을 남긴다.
 # 스크린샷: Saved/Screenshots/AutoPlay_0..2.png
 param(
     [string]$EngineDir = "D:\source\repos\UnrealEngine\Engine",

@@ -21,6 +21,7 @@ SPRITE_DIR = ROOT + "/Sprites"
 MOB_DIR = ROOT + "/Data/Mobs"
 DATA_DIR = ROOT + "/Data"
 MAP_DIR = ROOT + "/Maps"
+AUDIO_DIR = ROOT + "/Audio"
 
 ART_DIR = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "Art", "Generated")
 
@@ -30,6 +31,13 @@ SPRITE_MATERIAL = "/Paper2D/MaskedUnlitSpriteMaterial.MaskedUnlitSpriteMaterial"
 # 이름: 부드럽게 늘려야 하는 텍스처인지
 TEXTURES = {
     "T_Beetle": False,
+    "T_Beetle_Dash": False,
+    "T_MobBaldSparrow_Hit": False,
+    "T_MobBaldEagle_Hit": False,
+    "T_Poof0": False,
+    "T_Poof1": False,
+    "T_Feather": False,
+    "T_DizzyStar": False,
     "T_MobBaldSparrow": False,
     "T_MobBaldSparrow_Flap": False,
     "T_MobBaldEagle": False,
@@ -47,9 +55,9 @@ TEXTURES = {
 }
 
 MOBS = [
-    dict(name="DA_Mob_BaldSparrow", sprite="SPR_MobBaldSparrow", flap="SPR_MobBaldSparrow_Flap", flap_interval=0.12, display="대머리 참새",
+    dict(name="DA_Mob_BaldSparrow", sprite="SPR_MobBaldSparrow", flap="SPR_MobBaldSparrow_Flap", flap_interval=0.12, hit="SPR_MobBaldSparrow_Hit", feathers=6, display="대머리 참새",
          health=1.0, radius=80.0, score=50, xp=1, width=190.0, movement="HOVER", move_range=40.0, period=1.6),
-    dict(name="DA_Mob_BaldEagle", sprite="SPR_MobBaldEagle", flap="SPR_MobBaldEagle_Flap", flap_interval=0.22, display="대머리 독수리",
+    dict(name="DA_Mob_BaldEagle", sprite="SPR_MobBaldEagle", flap="SPR_MobBaldEagle_Flap", flap_interval=0.22, hit="SPR_MobBaldEagle_Hit", feathers=10, display="대머리 독수리",
          health=4.0, radius=120.0, score=250, xp=6, width=300.0, movement="PATROL", move_range=320.0, period=3.5),
 ]
 
@@ -147,6 +155,8 @@ def make_mob(spec, sprites):
     mob.set_editor_property("sprite_width", spec["width"])
     mob.set_editor_property("flap_sprite", sprites[spec["flap"]])
     mob.set_editor_property("flap_interval", spec["flap_interval"])
+    mob.set_editor_property("hit_sprite", sprites[spec["hit"]])
+    mob.set_editor_property("death_feathers", spec["feathers"])
     mob.set_editor_property("movement", getattr(unreal.YJJMobMovement, spec["movement"]))
     mob.set_editor_property("move_range", spec["move_range"])
     mob.set_editor_property("move_period", spec["period"])
@@ -177,6 +187,29 @@ def make_spawn_table(mobs):
     return table
 
 
+def import_sounds():
+    # Tools/Audio/generate_audio.py가 직접 합성한 소리 (상업적 사용 자유)
+    audio_dir = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "Tools", "Audio", "Generated")
+    for file_name in sorted(os.listdir(audio_dir)):
+        if not file_name.endswith(".wav"):
+            continue
+        name = file_name[:-4]
+        task = unreal.AssetImportTask()
+        task.set_editor_property("filename", os.path.join(audio_dir, file_name))
+        task.set_editor_property("destination_path", AUDIO_DIR)
+        task.set_editor_property("destination_name", name)
+        task.set_editor_property("automated", True)
+        task.set_editor_property("replace_existing", True)
+        task.set_editor_property("save", False)
+        asset_tools.import_asset_tasks([task])
+
+        sound = assets.load_asset(AUDIO_DIR + "/" + name)
+        if sound is None:
+            raise RuntimeError("Failed to import " + file_name)
+        sound.set_editor_property("looping", name.startswith("BGM"))
+        log("sound " + name)
+
+
 def make_test_map():
     path = MAP_DIR + "/L_RopeTest"
     if assets.does_asset_exist(path):
@@ -204,6 +237,7 @@ def main():
 
     mobs = {spec["name"]: make_mob(spec, sprites) for spec in MOBS}
     make_spawn_table(mobs)
+    import_sounds()
     make_test_map()
 
     assets.save_directory(ROOT, only_if_is_dirty=False, recursive=True)

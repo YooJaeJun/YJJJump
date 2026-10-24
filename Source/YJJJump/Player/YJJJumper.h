@@ -83,6 +83,9 @@ public:
 
 	const TArray<FYJJPopup>& GetPopups() const { return Popups; }
 
+	// 돌진/타격 중 (이때는 상승·하강 연출을 끈다)
+	bool IsAttacking() const { return SimState.IsDashing() || DashPoseTime > 0.f || HitStopTime > 0.f; }
+
 	// 드래그 중이면 놓았을 때의 예상 발사 속도 (X, Z)
 	bool GetLaunchPreview(FVector2f& OutVelocity) const;
 
@@ -108,6 +111,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	float BodyWidth = 280.f;
+
+	// 뿔 돌진 포즈
+	UPROPERTY(EditAnywhere, Category = "Visual")
+	TSoftObjectPtr<UPaperSprite> DashSprite;
+
+	// 돌진 포즈 픽셀 배율 (평소 몸 대비). 돌진 그림의 머리가 평소보다 작게 그려져 있어 키운다
+	UPROPERTY(EditAnywhere, Category = "Visual")
+	float DashPoseScale = 1.45f;
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> BackgroundSprite;
@@ -201,6 +212,24 @@ private:
 	EYJJTutorialStep TutorialStep = EYJJTutorialStep::Done;
 	float LevelStolenBannerTime = 0.f;
 	float HitStopTime = 0.f;
+
+	// 돌진 연출
+	void UpdateTrail();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPaperSprite> BodySpriteAsset;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPaperSprite> DashSpriteAsset;
+
+	UPROPERTY(VisibleAnywhere, Category = "Visual")
+	TArray<TObjectPtr<UPaperSpriteComponent>> Ghosts;
+
+	TArray<FTransform> TrailHistory;
+	FVector2f LastDashDir = FVector2f(1.f, 0.f);
+	float DashBaseScale = 1.f;
+	float DashPoseTime = 0.f;	// 돌진이 끝난 뒤에도 잠깐 포즈 유지 (타격 순간)
+	float TrailFade = 0.f;
 
 	float StepAccumulator = 0.f;
 	float CenterX = 0.f;

@@ -2,6 +2,7 @@
 
 
 #include "YJJJumpGameModeBase.h"
+#include "Audio/YJJAudio.h"
 #include "Combat/YJJMobData.h"
 #include "Combat/YJJSkySpawner.h"
 #include "EngineUtils.h"
@@ -31,6 +32,8 @@ void AYJJJumpGameModeBase::StartPlay()
 	}
 
 	Super::StartPlay();
+
+	YJJAudio::StartBgm(this);
 }
 
 void AYJJJumpGameModeBase::SpawnStage()

@@ -40,6 +40,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual", meta = (ClampMin = "0.02"))
 	float FlapInterval = 0.15f;
 
+	// 처치당한 프레임 (X 눈, 혹 등)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
+	TObjectPtr<UPaperSprite> HitSprite;
+
+	// 처치될 때 흩날리는 깃털 수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual", meta = (ClampMin = "0"))
+	int32 DeathFeathers = 6;
+
 	// 화면에 보이는 너비 (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual", meta = (ClampMin = "1"))
 	float SpriteWidth = 120.f;

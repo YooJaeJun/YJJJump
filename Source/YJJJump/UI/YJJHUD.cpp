@@ -297,7 +297,7 @@ void AYJJHUD::DrawSpeedLines(const AYJJJumper& Jumper)
 	// 빠를수록 화면에 세로 속도선이 지나간다 (과하지 않게)
 	const float Speed = Jumper.GetSpeedKmh();
 	const float Intensity = FMath::Clamp((Speed - 150.f) / 400.f, 0.f, 1.f);
-	if (Intensity <= 0.f || Jumper.GetSimState().Mode != EYJJJumperMode::Airborne)
+	if (Intensity <= 0.f || Jumper.GetSimState().Mode != EYJJJumperMode::Airborne || Jumper.IsAttacking())
 	{
 		return;
 	}

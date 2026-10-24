@@ -310,6 +310,138 @@ def make_bald_eagle(flap=False):
     return c
 
 
+def x_eye(c, cx, cy, r=2.5, width=1.5):
+    """기절한 X 눈."""
+    line(c, cx - r, cy - r, cx + r, cy + r, INK, width)
+    line(c, cx - r, cy + r, cx + r, cy - r, INK, width)
+
+
+def make_beetle_dash():
+    # 돌진 포즈: 몸을 수평으로 날리며 뿔로 들이받는다. 머리띠와 다리는 뒤로 휘날림, 눈은 >< 로 질끈
+    c = Canvas(104, 64)
+    face = hex_color("#FFF7EA")
+    shell = hex_color("#3B2416")
+    # 뒤에 남는 속도선 (그림의 일부)
+    for y, x0 in ((20, 2), (34, 0), (48, 6)):
+        line(c, x0, y, x0 + 14, y, hex_color("#FFFFFF"), 2)
+    # 뒤로 쭉 뻗은 다리 + 빨간 운동화
+    stick(c, 40, 40, 20, 46)
+    stick(c, 42, 44, 22, 56)
+    c.ellipse(16, 45, 5, 3.5, hex_color("#E5363C"))
+    c.ellipse(18, 56, 5, 3.5, hex_color("#E5363C"))
+    # 등껍질 + 몸통 (앞으로 기울어짐)
+    c.ellipse(40, 30, 13, 10, shell)
+    c.ellipse(36, 26, 5, 2.5, hex_color("#8A5A3A"))
+    c.ellipse(48, 38, 9, 7, face)
+    # 앞으로 내지른 주먹
+    stick(c, 54, 40, 76, 44)
+    c.circle(79, 44, 4, face)
+    # 머리 + 앞을 향한 뿔
+    c.circle(66, 26, 16, face)
+    c.polygon([(72, 14), (80, 16), (98, 8), (103, 10), (96, 14), (101, 16), (82, 22)], shell)
+    line(c, 84, 14, 96, 10, hex_color("#8A5A3A"), 1)
+    # 휘날리는 머리띠
+    c.fill(lambda x, y: 15 <= y < 20 and (x - 66) ** 2 + (y - 26) ** 2 <= 16 ** 2, hex_color("#E5363C"))
+    c.polygon([(51, 16), (34, 8), (33, 14)], hex_color("#E5363C"))
+    c.polygon([(51, 19), (32, 18), (35, 23)], hex_color("#C42A31"))
+    # >< 질끈 감은 눈 + 고함
+    line(c, 64, 23, 68, 25, INK, 1.5)
+    line(c, 64, 27, 68, 25, INK, 1.5)
+    line(c, 76, 23, 72, 25, INK, 1.5)
+    line(c, 76, 27, 72, 25, INK, 1.5)
+    c.ellipse(72, 33, 4, 3, hex_color("#7A1420"))
+    c.outline(INK, thickness=2)
+    return c
+
+
+def make_bald_sparrow_hit():
+    # 처치당한 대머리 참새: X 눈, 혀 빼꼼, 머리에 혹, 깃털 빠짐 (승인된 기본 프레임 기반)
+    c = Canvas(56, 48)
+    c.ellipse(24, 30, 16, 12, hex_color("#8A5A34"))
+    c.ellipse(26, 34, 10, 7, hex_color("#E6CFA8"))
+    c.polygon([(6, 26), (0, 20), (2, 30), (10, 32)], hex_color("#5E3A1E"))
+    c.polygon([(14, 26), (4, 38), (16, 34)], hex_color("#6E4526"))
+    bald_head(c, 38, 18, 11)
+    # 혹
+    c.circle(34, 8, 4, hex_color("#FF8A8A"))
+    c.circle(33, 7, 1.5, hex_color("#FFFFFF"))
+    x_eye(c, 41, 17)
+    # 벌어진 부리 + 혀
+    c.polygon([(48, 17), (55, 15), (49, 20)], hex_color("#F0A020"))
+    c.polygon([(48, 22), (55, 26), (48, 24)], hex_color("#F0A020"))
+    c.ellipse(52, 23, 3, 1.5, hex_color("#FF6F8A"))
+    # 빠진 깃털
+    c.polygon([(2, 8), (8, 6), (6, 10)], hex_color("#8A5A34"))
+    c.polygon([(16, 4), (22, 2), (20, 6)], hex_color("#8A5A34"))
+    # 다리 (뻗음)
+    line(c, 22, 41, 16, 46, hex_color("#F0A020"), 1.5)
+    line(c, 28, 41, 34, 46, hex_color("#F0A020"), 1.5)
+    c.outline()
+    return c
+
+
+def make_bald_eagle_hit():
+    # 처치당한 대머리 독수리: 선글라스 날아감, X 눈, 부리 쩍, 다리 꼬임
+    c = Canvas(84, 108)
+    skin = hex_color("#FFE0D2")
+    feather = hex_color("#5A3820")
+    line(c, 34, 66, 44, 84, skin, 7)
+    line(c, 44, 84, 30, 100, skin, 6)
+    line(c, 48, 66, 38, 84, skin, 7)
+    line(c, 38, 84, 54, 100, skin, 6)
+    c.ellipse(41, 58, 18, 14, feather)
+    c.ellipse(41, 44, 13, 6, hex_color("#FFFFFF"))
+    c.polygon([(26, 50), (6, 64), (10, 70), (28, 60)], hex_color("#3E2614"))
+    c.polygon([(56, 50), (76, 64), (72, 70), (54, 60)], hex_color("#3E2614"))
+    c.ellipse(42, 26, 17, 17, skin)
+    c.ellipse(35, 15, 5, 2.5, hex_color("#FFFFFF"))
+    # 혹 두 개
+    c.circle(48, 8, 4, hex_color("#FF8A8A"))
+    c.circle(36, 6, 3, hex_color("#FF8A8A"))
+    # 날아가는 선글라스 (비스듬히, 머리 위)
+    c.polygon([(52, 0), (74, 4), (73, 8), (51, 4)], INK)
+    x_eye(c, 36, 25, 3, 2)
+    x_eye(c, 49, 25, 3, 2)
+    # 쩍 벌린 부리 + 혀
+    c.polygon([(54, 27), (72, 24), (76, 28), (58, 31)], hex_color("#F2B21C"))
+    c.polygon([(56, 35), (70, 40), (68, 43), (55, 38)], hex_color("#F2B21C"))
+    c.ellipse(62, 34, 4, 2, hex_color("#FF6F8A"))
+    c.outline(INK, thickness=2)
+    return c
+
+
+def make_poof(frame):
+    # 처치 마무리 연기 "뿅" (2프레임: 뭉침 -> 퍼짐)
+    c = Canvas(48, 48)
+    rng = [(24, 24, 12), (14, 20, 8), (34, 20, 8), (18, 32, 8), (32, 32, 8)] if frame == 0 else           [(24, 24, 7), (8, 14, 6), (40, 12, 6), (10, 36, 6), (38, 38, 6), (24, 6, 5), (24, 42, 5)]
+    for cx, cy, r in rng:
+        c.circle(cx, cy, r, hex_color("#F2EEF6"))
+    for cx, cy, r in rng:
+        c.circle(cx - r * 0.3, cy - r * 0.3, r * 0.35, hex_color("#FFFFFF"))
+    c.outline(INK, thickness=2)
+    return c
+
+
+def make_feather():
+    c = Canvas(16, 8)
+    c.ellipse(8, 4, 7, 2.5, hex_color("#8A5A34"))
+    line(c, 1, 4, 15, 4, hex_color("#5E3A1E"), 1)
+    c.outline(INK)
+    return c
+
+
+def make_dizzy_star():
+    c = Canvas(14, 14)
+    points = []
+    for i in range(10):
+        angle = math.pi * 2 * i / 10 - math.pi / 2
+        radius = 6.5 if i % 2 == 0 else 3
+        points.append((7 + math.cos(angle) * radius, 7 + math.sin(angle) * radius))
+    c.polygon(points, hex_color("#FFE14D"))
+    c.outline(INK)
+    return c
+
+
 def make_ui_panel():
     # UI 9-슬라이스 패널: 둥근 사각형, 굵은 검은 테두리. 색은 HUD에서 틴트
     c = Canvas(24, 24)
@@ -360,10 +492,17 @@ def make_ui_flame():
 
 ART = {
     "T_Beetle": make_beetle,
+    "T_Beetle_Dash": make_beetle_dash,
     "T_MobBaldSparrow": make_bald_sparrow,
     "T_MobBaldSparrow_Flap": lambda: make_bald_sparrow(flap=True),
+    "T_MobBaldSparrow_Hit": make_bald_sparrow_hit,
     "T_MobBaldEagle": make_bald_eagle,
     "T_MobBaldEagle_Flap": lambda: make_bald_eagle(flap=True),
+    "T_MobBaldEagle_Hit": make_bald_eagle_hit,
+    "T_Poof0": lambda: make_poof(0),
+    "T_Poof1": lambda: make_poof(1),
+    "T_Feather": make_feather,
+    "T_DizzyStar": make_dizzy_star,
     "T_Impact": make_impact,
     "T_CloudButt": make_cloud_butt,
     "T_Rope": make_rope,

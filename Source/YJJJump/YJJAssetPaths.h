@@ -5,6 +5,12 @@
 namespace YJJAssetPaths
 {
 	inline constexpr const TCHAR* PlayerSprite = TEXT("/Game/YJJJump/Sprites/SPR_Beetle.SPR_Beetle");
+	inline constexpr const TCHAR* PlayerDashSprite = TEXT("/Game/YJJJump/Sprites/SPR_Beetle_Dash.SPR_Beetle_Dash");
+	inline constexpr const TCHAR* Poof0Sprite = TEXT("/Game/YJJJump/Sprites/SPR_Poof0.SPR_Poof0");
+	inline constexpr const TCHAR* Poof1Sprite = TEXT("/Game/YJJJump/Sprites/SPR_Poof1.SPR_Poof1");
+	inline constexpr const TCHAR* FeatherSprite = TEXT("/Game/YJJJump/Sprites/SPR_Feather.SPR_Feather");
+	inline constexpr const TCHAR* DizzyStarSprite = TEXT("/Game/YJJJump/Sprites/SPR_DizzyStar.SPR_DizzyStar");
+	inline constexpr const TCHAR* TranslucentSpriteMaterial = TEXT("/Paper2D/TranslucentUnlitSpriteMaterial.TranslucentUnlitSpriteMaterial");
 	inline constexpr const TCHAR* RopeSprite = TEXT("/Game/YJJJump/Sprites/SPR_Rope.SPR_Rope");
 	inline constexpr const TCHAR* RopePegSprite = TEXT("/Game/YJJJump/Sprites/SPR_RopePeg.SPR_RopePeg");
 	inline constexpr const TCHAR* ImpactSprite = TEXT("/Game/YJJJump/Sprites/SPR_Impact.SPR_Impact");

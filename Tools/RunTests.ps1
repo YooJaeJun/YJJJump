@@ -1,4 +1,4 @@
-# YJJJump 자동화 테스트를 헤드리스로 실행하고 결과를 요약한다.
+﻿# YJJJump 자동화 테스트를 헤드리스로 실행하고 결과를 요약한다.
 # 에디터를 끈 상태에서 실행: powershell -File Tools/RunTests.ps1
 param(
     [string]$EngineDir = "D:\source\repos\UnrealEngine\Engine",
