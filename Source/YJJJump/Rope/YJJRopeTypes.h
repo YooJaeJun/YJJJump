@@ -157,6 +157,19 @@ struct FYJJJumperState
 
 	// 마지막으로 착지한 로프 (낙하 시 복귀용)
 	int32 LastRopeId = INDEX_NONE;
+
+	// 이번 반동(착지~발사)의 판정, 그리고 마지막 발사에 적용된 판정 (공격력 계산용)
+	EYJJBounceGrade CurrentBounceGrade = EYJJBounceGrade::None;
+
+	UPROPERTY(BlueprintReadOnly)
+	EYJJBounceGrade LaunchGrade = EYJJBounceGrade::None;
+
+	// 전투 결과 (서버 권한 값)
+	UPROPERTY(BlueprintReadOnly)
+	int32 Score = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 Kills = 0;
 };
 
 // 한 스텝에서 일어난 일 (연출/UI용)

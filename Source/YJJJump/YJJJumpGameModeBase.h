@@ -39,6 +39,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Prototype")
 	float TestTowerHalfWidth = 900.f;
 
+	// 로프 사이 빈칸에 몹을 배치하는 규칙
+	UPROPERTY(EditAnywhere, Category = "Prototype")
+	TSoftObjectPtr<class UYJJSpawnTableData> SpawnTable;
+
 private:
 	void SpawnTestTower();
+	void SpawnMobInGap(FRandomStream& Random, const UYJJSpawnTableData& Table, const FVector& Start, float GapBottom, float GapTop);
 };

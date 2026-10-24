@@ -61,3 +61,7 @@ Thumbs.db
 $RECYCLE.BIN/
 .DS_Store
 *.lnk
+
+### Python
+__pycache__/
+*.pyc

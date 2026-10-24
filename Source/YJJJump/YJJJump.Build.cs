@@ -11,7 +11,7 @@ public class YJJJump : ModuleRules
 		// "Rope/YJJRope.h" 처럼 모듈 루트 기준으로 include
 		PublicIncludePaths.Add(ModuleDirectory);
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Paper2D" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

@@ -23,6 +23,7 @@ namespace YJJRopeSim
 		{
 			State.bGraded = true;
 			State.LastGrade = Grade;
+			State.CurrentBounceGrade = Grade;
 			OutEvents.bGraded = true;
 			OutEvents.Grade = Grade;
 
@@ -57,6 +58,12 @@ namespace YJJRopeSim
 			State.PendingHorizontalSpeed = 0.f;
 			State.bHasPendingHorizontal = false;
 			State.LastLaunchSpeed = UpSpeed;
+			State.LaunchGrade = State.CurrentBounceGrade;
+			if (State.CurrentBounceGrade == EYJJBounceGrade::None)
+			{
+				// 입력 없이 튕기면 연속 퍼펙트가 끊긴다
+				State.PerfectChain = 0;
+			}
 
 			OutEvents.bLaunched = true;
 		}
@@ -99,6 +106,7 @@ namespace YJJRopeSim
 			State.Velocity.Y = 0.f;
 			State.bReachedBottom = false;
 			State.bGraded = false;
+			State.CurrentBounceGrade = EYJJBounceGrade::None;
 			State.BottomTime = -1.0;
 			State.PendingLaunchMultiplier = 1.f;
 
@@ -245,6 +253,7 @@ namespace YJJRopeSim
 				State.Velocity.Y = FMath::Min(State.Velocity.Y * Multiplier, Tuning.MaxLaunchSpeed);
 				State.Velocity.X = AimSpeed;
 				State.LastLaunchSpeed = State.Velocity.Y;
+				State.LaunchGrade = State.CurrentBounceGrade;
 				return;
 			}
 
@@ -303,6 +312,7 @@ namespace YJJRopeSim
 		State.DeflectionSpeed = 0.f;
 		State.bReachedBottom = true;
 		State.bGraded = true;
+		State.CurrentBounceGrade = EYJJBounceGrade::None;
 		State.BottomTime = -1.0;
 		State.LastPressTime = -1.0;
 		State.PendingLaunchMultiplier = 1.f;
