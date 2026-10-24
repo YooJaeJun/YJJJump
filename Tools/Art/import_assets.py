@@ -29,31 +29,43 @@ SPRITE_MATERIAL = "/Paper2D/MaskedUnlitSpriteMaterial.MaskedUnlitSpriteMaterial"
 
 # 이름: 부드럽게 늘려야 하는 텍스처인지
 TEXTURES = {
-    "T_Player": False,
-    "T_MobCloudSlime": False,
-    "T_MobBird": False,
-    "T_MobThunderCloud": False,
+    "T_Beetle": False,
+    "T_MobBaldSparrow": False,
+    "T_MobBaldEagle": False,
     "T_Impact": False,
+    "T_CloudButt": False,
     "T_Rope": False,
     "T_RopePeg": False,
     "T_SkyBackground": True,
 }
 
 MOBS = [
-    dict(name="DA_Mob_CloudSlime", sprite="SPR_MobCloudSlime", display="Cloud Slime",
-         health=1.0, radius=55.0, score=100, width=130.0, movement="STATIC", move_range=0.0, period=2.5),
-    dict(name="DA_Mob_Bird", sprite="SPR_MobBird", display="Sky Bird",
-         health=1.8, radius=50.0, score=150, width=130.0, movement="PATROL", move_range=260.0, period=4.0),
-    dict(name="DA_Mob_ThunderCloud", sprite="SPR_MobThunderCloud", display="Thunder Cloud",
-         health=3.5, radius=70.0, score=300, width=170.0, movement="HOVER", move_range=90.0, period=3.0),
+    dict(name="DA_Mob_BaldSparrow", sprite="SPR_MobBaldSparrow", display="대머리 참새",
+         health=1.0, radius=80.0, score=50, xp=1, width=190.0, movement="HOVER", move_range=40.0, period=1.6),
+    dict(name="DA_Mob_BaldEagle", sprite="SPR_MobBaldEagle", display="대머리 독수리",
+         health=4.0, radius=120.0, score=250, xp=6, width=300.0, movement="PATROL", move_range=320.0, period=3.5),
 ]
 
 # 몹 이름: (가중치, 등장 최소 높이 cm)
 SKY_SPAWNS = {
-    "DA_Mob_CloudSlime": (3.0, 0.0),
-    "DA_Mob_Bird": (2.0, 800.0),
-    "DA_Mob_ThunderCloud": (1.2, 2000.0),
+    "DA_Mob_BaldSparrow": (4.0, 0.0),
+    "DA_Mob_BaldEagle": (1.5, 3000.0),
 }
+
+# 이전 버전(귀여운 아트)에서 쓰던 에셋. 있으면 지운다
+OBSOLETE = [
+    "/Game/YJJJump/Textures/T_Player",
+    "/Game/YJJJump/Textures/T_MobCloudSlime",
+    "/Game/YJJJump/Textures/T_MobBird",
+    "/Game/YJJJump/Textures/T_MobThunderCloud",
+    "/Game/YJJJump/Sprites/SPR_Player",
+    "/Game/YJJJump/Sprites/SPR_MobCloudSlime",
+    "/Game/YJJJump/Sprites/SPR_MobBird",
+    "/Game/YJJJump/Sprites/SPR_MobThunderCloud",
+    "/Game/YJJJump/Data/Mobs/DA_Mob_CloudSlime",
+    "/Game/YJJJump/Data/Mobs/DA_Mob_Bird",
+    "/Game/YJJJump/Data/Mobs/DA_Mob_ThunderCloud",
+]
 
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
 assets = unreal.EditorAssetLibrary
@@ -100,11 +112,14 @@ def import_texture(name, smooth):
 def make_sprite(texture_name, texture, material):
     sprite_name = "SPR_" + texture_name[2:]
     # 팩토리의 InitialTexture는 Python에 노출되지 않는다.
-    # 빈 스프라이트를 만들고 SourceTexture를 넣으면 PostEditChange가 크기를 잡는다
+    # 빈 스프라이트를 만들고 SourceTexture와 크기를 직접 넣는다
+    # (같은 텍스처를 다시 넣으면 PostEditChange가 크기를 다시 잡지 않으므로 크기는 항상 명시)
     sprite = get_or_create(sprite_name, SPRITE_DIR, unreal.PaperSprite, unreal.PaperSpriteFactory())
 
-    sprite.set_editor_property("source_dimension", unreal.Vector2D(0.0, 0.0))
+    sprite.set_editor_property("sprite_collision_domain", unreal.SpriteCollisionMode.NONE)
     sprite.set_editor_property("source_texture", texture)
+    sprite.set_editor_property("source_uv", unreal.Vector2D(0.0, 0.0))
+    sprite.set_editor_property("source_dimension", unreal.Vector2D(float(texture.blueprint_get_size_x()), float(texture.blueprint_get_size_y())))
     sprite.set_editor_property("default_material", material)
     sprite.set_editor_property("pixels_per_unreal_unit", 1.0)
     log("sprite " + sprite_name)
@@ -120,6 +135,7 @@ def make_mob(spec, sprites):
     mob.set_editor_property("max_health", spec["health"])
     mob.set_editor_property("radius", spec["radius"])
     mob.set_editor_property("score_value", spec["score"])
+    mob.set_editor_property("xp_value", spec["xp"])
     mob.set_editor_property("sprite", sprites[spec["sprite"]])
     mob.set_editor_property("sprite_width", spec["width"])
     mob.set_editor_property("movement", getattr(unreal.YJJMobMovement, spec["movement"]))
@@ -143,8 +159,11 @@ def make_spawn_table(mobs):
         entries.append(entry)
 
     table.set_editor_property("entries", entries)
-    table.set_editor_property("mob_chance_per_gap", 0.65)
-    table.set_editor_property("safe_gap_count", 2)
+    table.set_editor_property("cell_height", 450.0)
+    table.set_editor_property("mob_chance_per_cell", 0.65)
+    table.set_editor_property("second_mob_chance", 0.3)
+    table.set_editor_property("min_spawn_height", 500.0)
+    table.set_editor_property("scale_per_meter", 0.02)
     log("spawn table DA_SpawnTable_Sky")
     return table
 
@@ -162,6 +181,11 @@ def main():
     material = unreal.load_asset(SPRITE_MATERIAL)
     if material is None:
         raise RuntimeError("Missing " + SPRITE_MATERIAL)
+
+    for path in OBSOLETE:
+        if assets.does_asset_exist(path):
+            assets.delete_asset(path)
+            log("deleted " + path)
 
     sprites = {}
     for name, smooth in TEXTURES.items():

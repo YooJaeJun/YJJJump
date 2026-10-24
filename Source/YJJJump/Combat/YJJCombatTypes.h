@@ -11,20 +11,33 @@ enum class EYJJMobMovement : uint8
 	Hover,		// 위아래 왕복
 };
 
-// 공격 손맛 튜닝 값
+// 공격 손맛 튜닝 값. 공중에서 몬스터를 탭하면 뿔 돌진으로 들이받는다
 USTRUCT(BlueprintType)
 struct FYJJCombatTuning
 {
 	GENERATED_BODY()
 
-	// 이 속도로 부딪히면 기본 공격력 1
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float BaseAttackSpeed = 1500.f;
+	// 탭으로 돌진할 수 있는 거리 (cm). 레벨마다 늘어난다
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
+	float BaseAttackRange = 450.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float MinAttackPower = 0.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
+	float AttackRangePerLevel = 20.f;
 
-	// 발사할 때의 판정에 따른 공격력 배율
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
+	float MaxAttackRange = 900.f;
+
+	// 몬스터 반지름 밖으로 이만큼 빗나가게 탭해도 인정 (cm)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
+	float TapTolerance = 70.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0.01"))
+	float DashDuration = 0.07f;
+
+	// 공격력 = (1 + 레벨당 증가 * (Lv-1)) * 판정 배율 * 연속 퍼펙트 * 속도 배율^지수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
+	float PowerPerLevel = 0.35f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
 	float PerfectAttackMultiplier = 1.6f;
 
@@ -34,31 +47,29 @@ struct FYJJCombatTuning
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
 	float MissAttackMultiplier = 0.8f;
 
-	// 연속 퍼펙트 1회당 추가 공격력 배율
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
 	float ChainAttackBonus = 0.1f;
 
-	// 처치하면 관통하며 속도를 이만큼 유지
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit")
-	float KillSpeedRetain = 0.85f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
+	float SpeedPowerExponent = 0.5f;
 
-	// 처치 못 하면 이 속도로 튕겨 나온다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit")
-	float BlockedBounceSpeed = 1100.f;
+	// 튜토리얼의 Lv 999Gp 장수풍뎅이는 뭐든 한 방
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
+	float TutorialPower = 1.0e9f;
 
-	// 같은 몹을 연속으로 때릴 수 없는 시간
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit")
-	float HitCooldown = 0.3f;
+	// 다음 레벨까지 경험치 = XPBase * Lv^XPExponent
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+	float XPBase = 4.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hit")
-	float JumperRadius = 40.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+	float XPExponent = 1.5f;
 
 	// 처치 점수에 곱해지는 연속 퍼펙트 보너스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Score")
 	float ChainScoreBonus = 0.2f;
 };
 
-// 히트 판정에 필요한 몹 정보 (액터와 분리해 서버에서도 같은 계산)
+// 판정에 필요한 몬스터 정보 (액터와 분리해 서버에서도 같은 계산)
 struct FYJJMobTarget
 {
 	int32 Id = INDEX_NONE;
@@ -66,6 +77,7 @@ struct FYJJMobTarget
 	float Radius = 0.f;
 	float Health = 0.f;
 	int32 ScoreValue = 0;
+	int32 XPValue = 0;
 };
 
 struct FYJJHitResult
@@ -74,4 +86,6 @@ struct FYJJHitResult
 	bool bKilled = false;
 	float Damage = 0.f;
 	int32 ScoreGained = 0;
+	int32 XPGained = 0;
+	int32 LevelsGained = 0;
 };

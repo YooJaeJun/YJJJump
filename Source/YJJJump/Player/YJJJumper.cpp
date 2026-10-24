@@ -15,23 +15,26 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "Misc/Paths.h"
 #include "PaperSprite.h"
 #include "PaperSpriteComponent.h"
-#include "Misc/Paths.h"
 #include "UnrealClient.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogYJJJumper, Log, All);
 
 static TAutoConsoleVariable<int32> CVarAutoPlay(
 	TEXT("yjj.AutoPlay"), 0,
-	TEXT("1이면 봇이 드래그 발사와 퍼펙트 타이밍을 대신 입력한다 (스모크 테스트용)"));
+	TEXT("1이면 봇이 드래그 발사, 몬스터 탭, 퍼펙트 타이밍을 대신 입력한다 (스모크 테스트용)"));
 
 static TAutoConsoleVariable<float> CVarAutoPlayDuration(
 	TEXT("yjj.AutoPlayDuration"), 0.f,
 	TEXT("0보다 크면 오토플레이를 이 시간(초) 동안 하고 스크린샷을 남긴 뒤 게임을 종료한다"));
+
+static TAutoConsoleVariable<int32> CVarSkipTutorial(
+	TEXT("yjj.SkipTutorial"), 0,
+	TEXT("1이면 튜토리얼(Lv 999Gp) 없이 Lv 1부터 시작"));
 
 namespace
 {
@@ -39,10 +42,14 @@ namespace
 	constexpr float BodyDepth = 10.f;
 	constexpr float EffectDepth = 20.f;
 	constexpr float BackgroundDepth = -2000.f;
+	constexpr float CameraDistance = 3000.f;
 
 	const FLinearColor PerfectColor(1.f, 0.85f, 0.1f);
 	const FLinearColor GoodColor(0.3f, 1.f, 0.4f);
 	const FLinearColor MissColor(1.f, 0.35f, 0.3f);
+	const FLinearColor LevelUpColor(0.4f, 1.f, 1.f);
+
+	constexpr int32 TutorialKillsNeeded = 3;
 }
 
 AYJJJumper::AYJJJumper()
@@ -56,28 +63,22 @@ AYJJJumper::AYJJJumper()
 	Body->SetupAttachment(Root);
 	Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// 배경은 카메라를 따라다니도록 매 프레임 월드 위치를 직접 잡는다
-	Background = CreateDefaultSubobject<UPaperSpriteComponent>(TEXT("Background"));
-	Background->SetupAttachment(Root);
-	Background->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Background->SetUsingAbsoluteLocation(true);
-	Background->SetUsingAbsoluteRotation(true);
-	Background->SetUsingAbsoluteScale(true);
-
-	// 옆에서 보는 직교 카메라. X는 탑 중앙에 고정하고 Z만 따라간다
-	CameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraArm"));
-	CameraArm->SetupAttachment(Root);
-	CameraArm->SetUsingAbsoluteLocation(true);
-	CameraArm->SetUsingAbsoluteRotation(true);
-	CameraArm->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
-	CameraArm->TargetArmLength = 3000.f;
-	CameraArm->bDoCollisionTest = false;
-	CameraArm->bEnableCameraLag = false;
-
+	// 옆(+Y)에서 -Y를 보는 직교 카메라. X는 탑 중앙에 고정하고 Z만 따라간다.
+	// 초고속에선 한 프레임에 수십 m를 움직이므로 스프링암 없이 매 프레임 직접 위치를 잡는다
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	Camera->SetupAttachment(CameraArm);
+	Camera->SetupAttachment(Root);
+	Camera->SetUsingAbsoluteLocation(true);
+	Camera->SetUsingAbsoluteRotation(true);
+	Camera->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 	Camera->SetProjectionMode(ECameraProjectionMode::Orthographic);
 	Camera->SetOrthoWidth(CameraViewHeight);
+
+	// 배경은 카메라 자식으로 붙여 화면에 고정 (카메라 앞쪽 = 로컬 +X, 스프라이트 면이 카메라를 보도록 Yaw 90)
+	Background = CreateDefaultSubobject<UPaperSpriteComponent>(TEXT("Background"));
+	Background->SetupAttachment(Camera);
+	Background->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Background->SetRelativeLocation(FVector(CameraDistance - BackgroundDepth, 0.f, 0.f));
+	Background->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
 
 	BodySprite = TSoftObjectPtr<UPaperSprite>(FSoftObjectPath(YJJAssetPaths::PlayerSprite));
 	BackgroundSprite = TSoftObjectPtr<UPaperSprite>(FSoftObjectPath(YJJAssetPaths::SkySprite));
@@ -93,8 +94,7 @@ void AYJJJumper::BeginPlay()
 	CenterX = Start.X;
 	PlaneY = Start.Y;
 	StartHeight = Start.Z;
-	CameraZ = Start.Z + CameraLookAhead;
-	Camera->SetOrthoWidth(CameraViewHeight);
+	CameraZ = Start.Z;
 
 	UPaperSprite* BodyAsset = BodySprite.LoadSynchronous();
 	YJJSpriteUtils::SetSpriteWithWidth(Body, BodyAsset, BodyWidth);
@@ -109,6 +109,11 @@ void AYJJJumper::BeginPlay()
 	SimState = FYJJJumperState();
 	SimState.Position = FVector2f(Start.X, Start.Z);
 	SimState.MaxHeightReached = Start.Z;
+
+	// 튜토리얼 동안은 Lv 999Gp(구골플렉스) 장수풍뎅이
+	const bool bSkipTutorial = CVarSkipTutorial.GetValueOnGameThread() != 0;
+	SimState.bTutorial = !bSkipTutorial;
+	TutorialStep = bSkipTutorial ? EYJJTutorialStep::Done : EYJJTutorialStep::Drag;
 }
 
 void AYJJJumper::EnsureInputObjects()
@@ -165,6 +170,14 @@ void AYJJJumper::OnPressStarted(const FInputActionValue& Value)
 		return;
 	}
 
+	// 공중에서 몬스터를 탭하면 들이받기, 아니면 로프 타이밍 입력
+	FVector2f Pointer;
+	FVector2f TapGame;
+	if (GetPointerPosition(Pointer) && ScreenToGame(Pointer, TapGame) && TryTapAttack(TapGame))
+	{
+		return;
+	}
+
 	FYJJSimEvents Events;
 	YJJRopeSim::PressBounce(SimState, Tuning, ComputeAimX(), Events);
 	HandleEvents(Events);
@@ -205,6 +218,23 @@ bool AYJJJumper::GetPointerPosition(FVector2f& OutPosition) const
 	return false;
 }
 
+bool AYJJJumper::ScreenToGame(const FVector2f& Screen, FVector2f& OutGame) const
+{
+	const APlayerController* PC = Cast<APlayerController>(Controller);
+	FVector Origin;
+	FVector Direction;
+	if (!PC || !PC->DeprojectScreenPositionToWorld(Screen.X, Screen.Y, Origin, Direction) || FMath::IsNearlyZero(Direction.Y))
+	{
+		return false;
+	}
+
+	// 게임 평면(Y = PlaneY)과 만나는 점
+	const double T = (PlaneY - Origin.Y) / Direction.Y;
+	const FVector Hit = Origin + Direction * T;
+	OutGame = FVector2f(static_cast<float>(Hit.X), static_cast<float>(Hit.Z));
+	return true;
+}
+
 float AYJJJumper::ComputeAimX() const
 {
 	const APlayerController* PC = Cast<APlayerController>(Controller);
@@ -227,9 +257,67 @@ float AYJJJumper::ComputeAimX() const
 	return FMath::Clamp((Pointer.X - static_cast<float>(CharacterScreen.X)) / FullAimPixels, -1.f, 1.f);
 }
 
+bool AYJJJumper::TryTapAttack(const FVector2f& TapGamePosition)
+{
+	const UYJJMobSubsystem* Mobs = GetMobs();
+	if (!Mobs || SimState.Mode != EYJJJumperMode::Airborne)
+	{
+		return false;
+	}
+
+	TArray<FYJJMobTarget> Targets;
+	Mobs->GatherTargets(Targets);
+
+	// 탭한 지점에 가장 가까운 몬스터
+	const FYJJMobTarget* Tapped = nullptr;
+	for (const FYJJMobTarget& Target : Targets)
+	{
+		if (YJJCombat::IsTapOnMob(CombatTuning, TapGamePosition, Target)
+			&& (!Tapped || FVector2f::DistSquared(TapGamePosition, Target.Position) < FVector2f::DistSquared(TapGamePosition, Tapped->Position)))
+		{
+			Tapped = &Target;
+		}
+	}
+	if (!Tapped)
+	{
+		return false;
+	}
+
+	if (!StartDash(*Tapped))
+	{
+		AddPopup(GameToWorld(Tapped->Position, EffectDepth), TEXT("멀어 임마"), FLinearColor(0.85f, 0.85f, 0.85f), 0.9f, 0.6f);
+	}
+	return true;
+}
+
+bool AYJJJumper::StartDash(const FYJJMobTarget& Target)
+{
+	if (!YJJCombat::BeginDash(SimState, CombatTuning, Target))
+	{
+		return false;
+	}
+
+	const float DeltaX = Target.Position.X - SimState.Position.X;
+	if (FMath::Abs(DeltaX) > 1.f)
+	{
+		Facing = DeltaX > 0.f ? 1.f : -1.f;
+	}
+	return true;
+}
+
 float AYJJJumper::GetAttackPower() const
 {
 	return YJJCombat::ComputeAttackPower(SimState, CombatTuning);
+}
+
+float AYJJJumper::GetAttackRange() const
+{
+	return YJJCombat::GetAttackRange(SimState, CombatTuning);
+}
+
+int32 AYJJJumper::GetXPToNextLevel() const
+{
+	return YJJCombat::XPToNextLevel(CombatTuning, SimState.Level);
 }
 
 bool AYJJJumper::GetLaunchPreview(FVector2f& OutVelocity) const
@@ -272,6 +360,13 @@ float AYJJJumper::GetBestHeightMeters() const
 	return (SimState.MaxHeightReached - StartHeight) / 100.f;
 }
 
+float AYJJJumper::GetSpeedKmh() const
+{
+	// cm/s -> km/h
+	const FVector2f Velocity = SimState.IsDashing() ? SimState.DashSavedVelocity : SimState.Velocity;
+	return Velocity.Size() * 0.036f;
+}
+
 void AYJJJumper::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -294,6 +389,7 @@ void AYJJJumper::Tick(float DeltaSeconds)
 	RecoverFromFall();
 	SyncVisuals(DeltaSeconds);
 	TickPopups(DeltaSeconds);
+	LevelStolenBannerTime = FMath::Max(LevelStolenBannerTime - DeltaSeconds, 0.f);
 
 	if (bShowDebugText)
 	{
@@ -319,75 +415,73 @@ void AYJJJumper::TickSimulation(float DeltaSeconds)
 		return;
 	}
 
-	// 몹 위치는 프레임 단위로 갱신되므로 프레임마다 한 번 모은다
-	TArray<FYJJMobTarget> Targets;
-	if (const UYJJMobSubsystem* Mobs = GetMobs())
-	{
-		Mobs->GatherTargets(Targets);
-	}
-
 	// 프레임레이트와 무관하게 같은 결과가 나오도록 고정 스텝
 	StepAccumulator = FMath::Min(StepAccumulator + DeltaSeconds, 0.25f);
 	while (StepAccumulator >= YJJRopeSim::FixedStep)
 	{
 		StepAccumulator -= YJJRopeSim::FixedStep;
 
+		if (SimState.IsDashing())
+		{
+			// 돌진 중엔 로프/중력 대신 몬스터에게 직선 이동
+			SimState.SimTime += YJJRopeSim::FixedStep;
+			if (YJJCombat::StepDash(SimState, YJJRopeSim::FixedStep))
+			{
+				FinishDash();
+			}
+			continue;
+		}
+
 		FYJJSimEvents Events;
 		YJJRopeSim::Step(SimState, Tuning, Ropes->GetSegments(), CenterX, Events);
 		HandleEvents(Events);
-		ResolveMobHits(Targets);
 	}
 }
 
-void AYJJJumper::ResolveMobHits(TArray<FYJJMobTarget>& Targets)
+void AYJJJumper::FinishDash()
 {
-	for (FYJJMobTarget& Target : Targets)
+	const int32 MobId = SimState.DashMobId;
+	UYJJMobSubsystem* Mobs = GetMobs();
+	AYJJMob* Mob = Mobs ? Mobs->FindMob(MobId) : nullptr;
+
+	FYJJMobTarget Target;
+	if (Mob)
 	{
-		if (Target.Health <= 0.f)
-		{
-			continue;
-		}
+		Target = Mob->MakeTarget();
+	}
 
-		if (const double* LastHit = LastHitTimeByMob.Find(Target.Id))
-		{
-			if (SimState.SimTime - *LastHit < CombatTuning.HitCooldown)
-			{
-				continue;
-			}
-		}
+	const FYJJHitResult Result = YJJCombat::FinishDash(SimState, CombatTuning, Mob ? &Target : nullptr);
+	if (!Result.bHit)
+	{
+		return;
+	}
 
-		const FYJJHitResult Result = YJJCombat::ResolveHit(SimState, CombatTuning, Target);
-		if (!Result.bHit)
-		{
-			continue;
-		}
+	const FVector HitLocation = GameToWorld(Target.Position, EffectDepth);
+	Mob->ApplyHit(Result.Damage);
 
-		LastHitTimeByMob.Add(Target.Id, SimState.SimTime);
-		Target.Health -= Result.Damage;
-
-		const FVector MobLocation(Target.Position.X, PlaneY + EffectDepth, Target.Position.Y);
-		if (AYJJMob* Mob = GetMobs()->FindMob(Target.Id))
+	if (Result.bKilled)
+	{
+		AddShake(SimState.SpeedScale > 4.f ? 0.f : 0.25f);
+		AddPopup(HitLocation, FString::Printf(TEXT("+%d"), Result.ScoreGained), PerfectColor, 1.3f);
+		if (Result.LevelsGained > 0)
 		{
-			Mob->ApplyHit(Result.Damage);
+			AddShake(0.6f);
+			AYJJHitEffect::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, EffectDepth, 60.f), 260.f, LevelUpColor);
+			AddPopup(GetActorLocation() + FVector(0.f, EffectDepth, 220.f), FString::Printf(TEXT("레벨 업!! Lv %d"), SimState.Level), LevelUpColor, 1.8f, 1.4f);
 		}
-
-		if (Result.bKilled)
-		{
-			AddPopup(MobLocation, FString::Printf(TEXT("+%d"), Result.ScoreGained), PerfectColor, 1.4f);
-		}
-		else
-		{
-			AYJJHitEffect::Spawn(GetWorld(), MobLocation, 90.f, FLinearColor(0.8f, 0.8f, 1.f));
-			AddPopup(MobLocation, FString::Printf(TEXT("%.1f"), Result.Damage), FLinearColor(0.8f, 0.85f, 1.f), 1.f);
-		}
-
-		// 한 스텝에 한 마리만
-		break;
+	}
+	else
+	{
+		AddShake(0.2f);
+		AYJJHitEffect::Spawn(GetWorld(), HitLocation, 90.f, FLinearColor(0.8f, 0.8f, 1.f));
+		AddPopup(HitLocation, FString::Printf(TEXT("-%.1f  안 죽네?"), Result.Damage), FLinearColor(0.8f, 0.85f, 1.f), 1.f);
 	}
 }
 
 void AYJJJumper::HandleEvents(const FYJJSimEvents& Events)
 {
+	UpdateTutorial(Events);
+
 	if (!Events.bGraded)
 	{
 		return;
@@ -395,25 +489,84 @@ void AYJJJumper::HandleEvents(const FYJJSimEvents& Events)
 
 	OnBounceGraded.Broadcast(Events.Grade, SimState.PerfectChain);
 
-	const FVector Above = GetActorLocation() + FVector(0.f, EffectDepth, 160.f);
+	const FVector Above = GetActorLocation() + FVector(0.f, EffectDepth, 180.f);
 	switch (Events.Grade)
 	{
 	case EYJJBounceGrade::Perfect:
-		AddPopup(Above, SimState.PerfectChain > 1 ? FString::Printf(TEXT("PERFECT x%d"), SimState.PerfectChain) : FString(TEXT("PERFECT")), PerfectColor, 1.6f);
+		AddShake(0.3f);
+		AddPopup(Above, SimState.PerfectChain >= 3 ? FString::Printf(TEXT("개쩔어!! x%d"), SimState.PerfectChain) : FString(TEXT("퍼펙트!!")), PerfectColor, 1.7f);
 		break;
 	case EYJJBounceGrade::Good:
-		AddPopup(Above, TEXT("GOOD"), GoodColor, 1.3f);
+		AddPopup(Above, TEXT("굿"), GoodColor, 1.3f);
 		break;
 	default:
-		AddPopup(Above, TEXT("MISS"), MissColor, 1.1f);
+		AddPopup(Above, TEXT("응 아니야"), MissColor, 1.2f);
 		break;
 	}
+}
+
+void AYJJJumper::UpdateTutorial(const FYJJSimEvents& Events)
+{
+	switch (TutorialStep)
+	{
+	case EYJJTutorialStep::Drag:
+		if (Events.bLaunched)
+		{
+			TutorialStep = EYJJTutorialStep::TapMob;
+		}
+		break;
+	case EYJJTutorialStep::TapMob:
+		if (SimState.Kills >= TutorialKillsNeeded)
+		{
+			TutorialStep = EYJJTutorialStep::Perfect;
+		}
+		break;
+	case EYJJTutorialStep::Perfect:
+		if (Events.bGraded && Events.Grade == EYJJBounceGrade::Perfect)
+		{
+			TutorialStep = EYJJTutorialStep::LevelStolen;
+		}
+		break;
+	case EYJJTutorialStep::LevelStolen:
+		// 다음 착지 순간 대머리 독수리가 레벨을 털어 간다
+		if (Events.bLanded)
+		{
+			ApplyLevelStolen();
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void AYJJJumper::ApplyLevelStolen()
+{
+	TutorialStep = EYJJTutorialStep::Done;
+	LevelStolenBannerTime = 4.5f;
+
+	SimState.bTutorial = false;
+	SimState.Level = 1;
+	SimState.XP = 0;
+	SimState.Score = 0;
+	SimState.Kills = 0;
+	SimState.PerfectChain = 0;
+	SimState.LaunchGrade = EYJJBounceGrade::None;
+
+	if (const UYJJRopeSubsystem* Ropes = GetRopes())
+	{
+		if (const FYJJRopeSegment* Rope = YJJRopeSim::FindRope(Ropes->GetSegments(), SimState.RopeId))
+		{
+			YJJRopeSim::PlaceOnRope(SimState, Tuning, *Rope, CenterX);
+		}
+	}
+	SimState.MaxHeightReached = SimState.Position.Y;
+	AddShake(2.f);
 }
 
 void AYJJJumper::RecoverFromFall()
 {
 	const UYJJRopeSubsystem* Ropes = GetRopes();
-	if (!Ropes || !Ropes->HasRopes() || SimState.Mode != EYJJJumperMode::Airborne)
+	if (!Ropes || !Ropes->HasRopes() || SimState.Mode != EYJJJumperMode::Airborne || SimState.IsDashing())
 	{
 		return;
 	}
@@ -429,6 +582,11 @@ void AYJJJumper::RecoverFromFall()
 		Rope = &Ropes->GetSegments()[0];
 	}
 	YJJRopeSim::PlaceOnRope(SimState, Tuning, *Rope, (Rope->MinX + Rope->MaxX) * 0.5f);
+}
+
+FVector AYJJJumper::GameToWorld(const FVector2f& Game, float Depth) const
+{
+	return FVector(Game.X, PlaneY + Depth, Game.Y);
 }
 
 void AYJJJumper::SyncVisuals(float DeltaSeconds)
@@ -455,20 +613,46 @@ void AYJJJumper::SyncVisuals(float DeltaSeconds)
 		}
 	}
 
-	// 카메라는 위쪽을 더 보이게 따라간다
-	CameraZ = FMath::FInterpTo(CameraZ, SimState.Position.Y + CameraLookAhead, DeltaSeconds, CameraFollowSpeed);
-	CameraArm->SetWorldLocation(FVector(CenterX, PlaneY, CameraZ));
+	const FVector2f Visible = UpdateCameraFraming(DeltaSeconds);
 
-	// 배경은 카메라 뒤에서 보이는 영역을 넉넉히 덮는다
-	const FVector2f Visible = UpdateCameraFraming();
+	// 진행 방향을 미리 보여준다 (떨어질 땐 로프 쪽을 더 보이게)
+	const FVector2f Velocity = SimState.IsDashing() ? SimState.DashSavedVelocity : SimState.Velocity;
+	const float LookAhead = SimState.Mode == EYJJJumperMode::Airborne
+		? FMath::Clamp(Velocity.Y * CameraLookAheadTime, -Visible.Y * 0.38f, Visible.Y * 0.38f)
+		: Visible.Y * 0.3f;
+	const float TargetZ = SimState.Position.Y + LookAhead;
+	// 아주 빠르면 카메라도 바로 붙는다
+	const float FollowSpeed = CameraFollowSpeed * FMath::Max(SimState.SpeedScale, 1.f);
+	CameraZ = FMath::FInterpTo(CameraZ, TargetZ, DeltaSeconds, FollowSpeed);
+
+	// 처치/퍼펙트 때 화면 흔들림
+	FVector ShakeOffset = FVector::ZeroVector;
+	if (ShakeTime > 0.f)
+	{
+		ShakeTime = FMath::Max(ShakeTime - DeltaSeconds, 0.f);
+		const float Amplitude = ShakeStrength * (ShakeTime / 0.25f) * Visible.Y * 0.012f;
+		ShakeOffset = FVector(FMath::FRandRange(-1.f, 1.f) * Amplitude, 0.f, FMath::FRandRange(-1.f, 1.f) * Amplitude);
+	}
+	Camera->SetWorldLocation(FVector(CenterX, PlaneY + CameraDistance, CameraZ) + ShakeOffset);
+
+	// 배경은 보이는 영역을 덮고, 높이 올라갈수록 어두워진다 (하늘 -> 우주)
 	if (BackgroundSpriteSize.X > KINDA_SMALL_NUMBER && BackgroundSpriteSize.Y > KINDA_SMALL_NUMBER)
 	{
-		Background->SetWorldLocationAndRotation(FVector(CenterX, PlaneY + BackgroundDepth, CameraZ), FRotator::ZeroRotator);
-		Background->SetWorldScale3D(FVector(Visible.X * 1.1f / BackgroundSpriteSize.X, 1.f, Visible.Y * 1.1f / BackgroundSpriteSize.Y));
+		// 초고속 프레임에서도 빈 곳이 보이지 않도록 보이는 영역보다 훨씬 크게 덮는다
+		Background->SetRelativeScale3D(FVector(Visible.X * 4.f / BackgroundSpriteSize.X, 1.f, Visible.Y * 4.f / BackgroundSpriteSize.Y));
+
+		const float HeightM = (CameraZ - StartHeight) / 100.f;
+		const FLinearColor Low(1.f, 1.f, 1.f);
+		const FLinearColor High(0.35f, 0.35f, 0.65f);
+		const FLinearColor Space(0.07f, 0.05f, 0.14f);
+		const FLinearColor Tint = HeightM < 300.f
+			? FLinearColor::LerpUsingHSV(Low, High, FMath::Clamp(HeightM / 300.f, 0.f, 1.f))
+			: FLinearColor::LerpUsingHSV(High, Space, FMath::Clamp((HeightM - 300.f) / 700.f, 0.f, 1.f));
+		Background->SetSpriteColor(Tint);
 	}
 }
 
-FVector2f AYJJJumper::UpdateCameraFraming()
+FVector2f AYJJJumper::UpdateCameraFraming(float DeltaSeconds)
 {
 	float Aspect = 9.f / 16.f;
 	if (const APlayerController* PC = Cast<APlayerController>(Controller))
@@ -482,14 +666,19 @@ FVector2f AYJJJumper::UpdateCameraFraming()
 		}
 	}
 
+	// 빨라질수록 줌 아웃해서 속도감을 키운다
+	const float TargetZoom = FMath::Clamp(1.f + 0.2f * FMath::Log2(FMath::Max(SimState.SpeedScale, 1.f)), 1.f, CameraMaxZoomOut);
+	CameraZoom = FMath::FInterpTo(CameraZoom, TargetZoom, DeltaSeconds, 2.f);
+
 	// 세로 시야를 기준으로 했을 때 탑이 좌우로 다 들어오면 세로 고정, 아니면(세로 폰) 가로 고정
-	const float NeedWidth = (Tuning.WallHalfWidth + CameraSideMargin) * 2.f;
+	const float ViewHeight = CameraViewHeight * CameraZoom;
+	const float NeedWidth = (Tuning.WallHalfWidth + CameraSideMargin) * 2.f * CameraZoom;
 	Camera->bOverrideAspectRatioAxisConstraint = true;
-	if (CameraViewHeight * Aspect >= NeedWidth)
+	if (ViewHeight * Aspect >= NeedWidth)
 	{
 		Camera->SetAspectRatioAxisConstraint(EAspectRatioAxisConstraint::AspectRatio_MaintainYFOV);
-		Camera->SetOrthoWidth(CameraViewHeight);
-		return FVector2f(CameraViewHeight * Aspect, CameraViewHeight);
+		Camera->SetOrthoWidth(ViewHeight);
+		return FVector2f(ViewHeight * Aspect, ViewHeight);
 	}
 
 	Camera->SetAspectRatioAxisConstraint(EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV);
@@ -497,42 +686,65 @@ FVector2f AYJJJumper::UpdateCameraFraming()
 	return FVector2f(NeedWidth, NeedWidth / Aspect);
 }
 
+void AYJJJumper::AddShake(float Strength)
+{
+	// 흔들리는 중이면 남은 세기를 절반 이어받아 겹친다
+	ShakeStrength = (ShakeTime > 0.f ? ShakeStrength * 0.5f : 0.f) + Strength;
+	ShakeTime = 0.25f;
+}
+
 void AYJJJumper::AnimateBody()
 {
-	// 로프 위에서는 처진 만큼 찌그러지고, 공중에서는 속도만큼 늘어난다
+	// 로프 위에서는 처진 만큼 찌그러지고, 공중에서는 속도만큼 늘어나고, 돌진 중엔 앞으로 쭉
 	float SquashX = 1.f;
 	float SquashZ = 1.f;
-	if (SimState.Mode == EYJJJumperMode::Airborne)
+	float Pitch = 0.f;
+	if (SimState.IsDashing())
 	{
-		const float Stretch = FMath::Clamp(FMath::Abs(SimState.Velocity.Y) / 5000.f, 0.f, 0.3f);
+		const FVector2f Dir = SimState.DashTo - SimState.DashFrom;
+		SquashX = 1.35f;
+		SquashZ = 0.75f;
+		Pitch = FMath::RadiansToDegrees(FMath::Atan2(Dir.Y * Facing, Dir.X * Facing));
+	}
+	else if (SimState.Mode == EYJJJumperMode::Airborne)
+	{
+		const float Stretch = FMath::Clamp(FMath::Abs(SimState.Velocity.Y) / (5000.f * SimState.SpeedScale), 0.f, 0.3f);
 		SquashZ = 1.f + Stretch;
 		SquashX = 1.f - Stretch * 0.5f;
 	}
 	else
 	{
-		const float Squash = FMath::Clamp(SimState.Deflection / FMath::Max(Tuning.MaxDeflection, 1.f), 0.f, 1.f) * 0.35f;
+		const float Squash = FMath::Clamp(SimState.Deflection / FMath::Max(Tuning.MaxDeflection, 1.f), 0.f, 1.f) * 0.4f;
 		SquashZ = 1.f - Squash;
 		SquashX = 1.f + Squash * 0.7f;
 	}
 
 	// 좌우로 움직이면 그쪽을 본다
-	if (FMath::Abs(SimState.Velocity.X) > 50.f)
+	if (!SimState.IsDashing() && FMath::Abs(SimState.Velocity.X) > 50.f)
 	{
 		Facing = SimState.Velocity.X > 0.f ? 1.f : -1.f;
 	}
 
 	Body->SetRelativeScale3D(FVector(BodyBaseScale * SquashX * Facing, BodyBaseScale, BodyBaseScale * SquashZ));
+	Body->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
 	// 발이 로프(액터 위치)에 닿도록 중심을 올린다
 	Body->SetRelativeLocation(FVector(0.f, BodyDepth, BodySpriteHeight * 0.5f * SquashZ));
 }
 
-void AYJJJumper::AddPopup(const FVector& Location, const FString& Text, const FLinearColor& Color, float Scale)
+void AYJJJumper::AddPopup(const FVector& Location, const FString& Text, const FLinearColor& Color, float Scale, float Lifetime)
 {
+	// 고속에서 처치가 몰려도 화면이 글자로 덮이지 않게 최근 몇 개만
+	constexpr int32 MaxPopups = 6;
+	if (Popups.Num() >= MaxPopups)
+	{
+		Popups.RemoveAt(0);
+	}
 	FYJJPopup& Popup = Popups.AddDefaulted_GetRef();
 	Popup.WorldLocation = Location;
 	Popup.Text = Text;
 	Popup.Color = Color;
 	Popup.Scale = Scale;
+	Popup.Lifetime = Lifetime;
 }
 
 void AYJJJumper::TickPopups(float DeltaSeconds)
@@ -552,43 +764,8 @@ void AYJJJumper::DrawDebugText() const
 		return;
 	}
 
-	GEngine->AddOnScreenDebugMessage(1001, 0.f, FColor::White, FString::Printf(TEXT("Mode %s  Launch %.0f  Deflection %.0f  Chain %d"),
-		*UEnum::GetDisplayValueAsText(SimState.Mode).ToString(), SimState.LastLaunchSpeed, SimState.Deflection, SimState.PerfectChain));
-
-	// 드래그 중이면 예상 발사 방향 표시
-	if (SimState.Mode == EYJJJumperMode::Dragging)
-	{
-		const float UpSpeed = (SimState.Deflection - YJJRopeSim::RestDeflection(Tuning)) * FMath::Sqrt(Tuning.RopeStiffness);
-		const FVector From = GetActorLocation();
-		const FVector Dir = FVector(SimState.PendingHorizontalSpeed, 0.f, UpSpeed) * 0.15f;
-		DrawDebugDirectionalArrow(GetWorld(), From, From + Dir, 60.f, FColor::Cyan, false, 0.f, 0, 6.f);
-	}
-}
-
-float AYJJJumper::ChooseAutoAim() const
-{
-	// 지금보다 높은 로프 중 가장 가까운 것의 중앙을 노린다
-	const UYJJRopeSubsystem* Ropes = GetRopes();
-	if (!Ropes)
-	{
-		return 0.f;
-	}
-
-	const FYJJRopeSegment* Target = nullptr;
-	for (const FYJJRopeSegment& Rope : Ropes->GetSegments())
-	{
-		if (Rope.Height > SimState.Position.Y + 50.f && (!Target || Rope.Height < Target->Height))
-		{
-			Target = &Rope;
-		}
-	}
-	if (!Target)
-	{
-		return 0.f;
-	}
-
-	const float TargetX = (Target->MinX + Target->MaxX) * 0.5f;
-	return FMath::Clamp((TargetX - SimState.Position.X) / 700.f, -1.f, 1.f);
+	GEngine->AddOnScreenDebugMessage(1001, 0.f, FColor::White, FString::Printf(TEXT("Mode %s  Launch %.0f  Scale %.2f  Deflection %.0f  Chain %d"),
+		*UEnum::GetDisplayValueAsText(SimState.Mode).ToString(), SimState.LastLaunchSpeed, SimState.SpeedScale, SimState.Deflection, SimState.PerfectChain));
 }
 
 void AYJJJumper::TickAutoPlay(float DeltaSeconds)
@@ -597,36 +774,65 @@ void AYJJJumper::TickAutoPlay(float DeltaSeconds)
 
 	if (SimState.Mode == EYJJJumperMode::Resting)
 	{
-		// 끝까지 당기고 목표 쪽으로 발사 (드래그 픽셀 -> 좌우 속도는 반대 방향)
-		const float Aim = ChooseAutoAim();
-		const float DragX = -Aim * Tuning.MaxHorizontalSpeed / FMath::Max(Tuning.DragPixelsToHorizontalSpeed, 0.01f);
+		// 끝까지 당겨서 똑바로 발사
 		if (YJJRopeSim::BeginDrag(SimState))
 		{
-			YJJRopeSim::UpdateDrag(SimState, Tuning, FVector2f(DragX, 1000.f));
+			YJJRopeSim::UpdateDrag(SimState, Tuning, FVector2f(0.f, 1000.f));
 			YJJRopeSim::ReleaseDrag(SimState, Tuning);
 		}
 	}
 	else if (SimState.Mode == EYJJJumperMode::OnRope && SimState.bReachedBottom && !SimState.bGraded)
 	{
-		// 최저점 직후 프레임에 입력 -> 퍼펙트
+		// 최저점 직후 프레임에 입력 -> 퍼펙트. 로프 쪽으로 살짝 중앙 복귀
 		FYJJSimEvents Events;
-		YJJRopeSim::PressBounce(SimState, Tuning, ChooseAutoAim(), Events);
+		YJJRopeSim::PressBounce(SimState, Tuning, FMath::Clamp((CenterX - SimState.Position.X) / 900.f, -0.5f, 0.5f), Events);
 		HandleEvents(Events);
+	}
+	else if (SimState.Mode == EYJJJumperMode::Airborne && SimState.Velocity.Y < 0.f && SimState.SpeedScale >= 3.f
+		&& SimState.LastPressTime < 0.0 && !SimState.IsDashing()
+		&& (SimState.Position.Y - SimState.RopeHeight) / -SimState.Velocity.Y < 0.02f)
+	{
+		// 너무 빨라서 로프에 닿아 있는 시간이 한 프레임보다 짧다 -> 닿기 직전에 미리 누른다 (사람도 이렇게 해야 함)
+		FYJJSimEvents Events;
+		YJJRopeSim::PressBounce(SimState, Tuning, FMath::Clamp((CenterX - SimState.Position.X) / 900.f, -0.5f, 0.5f), Events);
+		HandleEvents(Events);
+	}
+	else if (SimState.Mode == EYJJJumperMode::Airborne && !SimState.IsDashing() && AutoPlayTime >= AutoPlayNextTap)
+	{
+		// 사거리 안의 가장 가까운 몬스터를 탭
+		if (const UYJJMobSubsystem* Mobs = GetMobs())
+		{
+			TArray<FYJJMobTarget> Targets;
+			Mobs->GatherTargets(Targets);
+			const FYJJMobTarget* Best = nullptr;
+			for (const FYJJMobTarget& Target : Targets)
+			{
+				if (YJJCombat::CanDashTo(SimState, CombatTuning, Target)
+					&& (!Best || FVector2f::DistSquared(SimState.Position, Target.Position) < FVector2f::DistSquared(SimState.Position, Best->Position)))
+				{
+					Best = &Target;
+				}
+			}
+			if (Best && StartDash(*Best))
+			{
+				AutoPlayNextTap = AutoPlayTime + 0.12f;
+			}
+		}
 	}
 
 	if (AutoPlayTime >= AutoPlayNextReport)
 	{
 		AutoPlayNextReport += 2.f;
-		UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] t=%.0f height=%.1fm best=%.1fm score=%d kills=%d chain=%d mode=%s mobs=%d"),
-			AutoPlayTime, GetHeightMeters(), GetBestHeightMeters(), SimState.Score, SimState.Kills, SimState.PerfectChain,
-			*UEnum::GetValueAsString(SimState.Mode), GetMobs() ? GetMobs()->Num() : 0);
+		UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] t=%.0f height=%.1fm best=%.1fm speed=%.0fkm/h scale=%.2f Lv=%d%s xp=%d score=%d kills=%d chain=%d tutorial=%s mobs=%d"),
+			AutoPlayTime, GetHeightMeters(), GetBestHeightMeters(), GetSpeedKmh(), SimState.SpeedScale, SimState.Level, SimState.bTutorial ? TEXT("(999Gp)") : TEXT(""),
+			SimState.XP, SimState.Score, SimState.Kills, SimState.PerfectChain, *UEnum::GetValueAsString(TutorialStep), GetMobs() ? GetMobs()->Num() : 0);
 	}
 
-	// 정해진 시간 동안 스크린샷 3장을 남기고 종료
+	// 정해진 시간 동안 스크린샷 4장을 남기고 종료
 	const float Duration = CVarAutoPlayDuration.GetValueOnGameThread();
 	if (Duration > 0.f)
 	{
-		const float ShotTimes[] = { Duration * 0.15f, Duration * 0.5f, Duration * 0.95f };
+		const float ShotTimes[] = { Duration * 0.1f, Duration * 0.35f, Duration * 0.65f, Duration * 0.95f };
 		if (AutoPlayShotIndex < UE_ARRAY_COUNT(ShotTimes) && AutoPlayTime >= ShotTimes[AutoPlayShotIndex])
 		{
 			const FString Path = FPaths::ProjectSavedDir() / FString::Printf(TEXT("Screenshots/AutoPlay_%d.png"), AutoPlayShotIndex);
@@ -636,7 +842,7 @@ void AYJJJumper::TickAutoPlay(float DeltaSeconds)
 		}
 		if (AutoPlayTime >= Duration + 1.f)
 		{
-			UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] finished best=%.1fm score=%d kills=%d"), GetBestHeightMeters(), SimState.Score, SimState.Kills);
+			UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] finished best=%.1fm Lv=%d score=%d kills=%d"), GetBestHeightMeters(), SimState.Level, SimState.Score, SimState.Kills);
 			FPlatformMisc::RequestExit(false, TEXT("yjj.AutoPlayDuration"));
 		}
 	}

@@ -38,6 +38,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
 	float MovePhase = 0.f;
 
+	// 높이가 올라갈수록 강해지고 보상도 커진다 (스포너가 설정)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
+	float StatMultiplier = 1.f;
+
+	// 좌우 왕복 거리 제한 (벽 안쪽에 머물도록, 스포너가 설정)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
+	float MaxMoveRange = 1.0e6f;
+
 private:
 	void UpdateVisualScale();
 

@@ -27,6 +27,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
 	int32 ScoreValue = 100;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
+	int32 XPValue = 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visual")
 	TObjectPtr<UPaperSprite> Sprite;
 
@@ -62,7 +65,7 @@ struct FYJJMobSpawnEntry
 	float MinHeight = 0.f;
 };
 
-// 로프 사이 빈칸에 몹을 배치하는 규칙. 나중에 바이옴 데이터로 확장
+// 하늘을 높이 칸(Cell)으로 나눠 몬스터를 채우는 규칙. 나중에 바이옴 데이터로 확장
 UCLASS(BlueprintType)
 class YJJJUMP_API UYJJSpawnTableData : public UPrimaryDataAsset
 {
@@ -72,13 +75,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn")
 	TArray<FYJJMobSpawnEntry> Entries;
 
-	// 로프 사이 빈칸 하나에 몹이 생길 확률
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (ClampMin = "0", ClampMax = "1"))
-	float MobChancePerGap = 0.6f;
+	// 높이 칸 하나의 크기 (cm)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (ClampMin = "50"))
+	float CellHeight = 450.f;
 
-	// 첫 몇 칸은 몹 없이 연습
+	// 칸 하나에 몬스터가 생길 확률, 그리고 두 번째 몬스터가 생길 확률
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (ClampMin = "0", ClampMax = "1"))
+	float MobChancePerCell = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (ClampMin = "0", ClampMax = "1"))
+	float SecondMobChance = 0.25f;
+
+	// 로프 바로 위는 비워 둔다 (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (ClampMin = "0"))
-	int32 SafeGapCount = 2;
+	float MinSpawnHeight = 500.f;
+
+	// 1m 올라갈 때마다 몬스터 체력/보상 증가율
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn", meta = (ClampMin = "0"))
+	float ScalePerMeter = 0.02f;
 
 	// 높이에 맞는 항목 중 가중치로 하나 고른다
 	const FYJJMobSpawnEntry* PickEntry(FRandomStream& Random, float HeightAboveStart) const;

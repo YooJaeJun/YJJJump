@@ -65,3 +65,7 @@ $RECYCLE.BIN/
 ### Python
 __pycache__/
 *.pyc
+
+### DevLog (영상 원본 소재, 용량 큼)
+DevLog/Footage/
+DevLog/Output/

@@ -11,7 +11,10 @@ namespace YJJRopeSim
 	constexpr float FixedStep = 1.f / 120.f;
 
 	// 로프 위에서 가만히 있을 때의 처짐 (중력과 스프링이 평형)
-	YJJJUMP_API float RestDeflection(const FYJJRopeTuning& Tuning);
+	YJJJUMP_API float RestDeflection(const FYJJRopeTuning& Tuning, float SpeedScale = 1.f);
+
+	// 발사 속도 -> 속도 배율 (중력/로프를 얼마나 빠르게 돌릴지)
+	YJJJUMP_API float ComputeSpeedScale(const FYJJRopeTuning& Tuning, float LaunchSpeed);
 
 	YJJJUMP_API void Step(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float CenterX, FYJJSimEvents& OutEvents);
 

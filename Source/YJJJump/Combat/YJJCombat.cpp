@@ -20,47 +20,121 @@ namespace YJJCombat
 		}
 	}
 
-	float ComputeAttackPower(const FYJJJumperState& State, const FYJJCombatTuning& Tuning)
+	float GetAttackRange(const FYJJJumperState& State, const FYJJCombatTuning& Tuning)
 	{
-		const float SpeedFactor = State.Velocity.Size() / FMath::Max(Tuning.BaseAttackSpeed, 1.f);
-		const float ChainFactor = 1.f + State.PerfectChain * Tuning.ChainAttackBonus;
-		return FMath::Max(SpeedFactor * GradeMultiplier(Tuning, State.LaunchGrade) * ChainFactor, Tuning.MinAttackPower);
+		const int32 Level = State.bTutorial ? 999 : State.Level;
+		return FMath::Min(Tuning.BaseAttackRange + Tuning.AttackRangePerLevel * (Level - 1), Tuning.MaxAttackRange);
 	}
 
-	FYJJHitResult ResolveHit(FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget& Mob)
+	float ComputeAttackPower(const FYJJJumperState& State, const FYJJCombatTuning& Tuning)
 	{
-		FYJJHitResult Result;
-		if (State.Mode != EYJJJumperMode::Airborne || Mob.Health <= 0.f)
+		if (State.bTutorial)
 		{
-			return Result;
+			return Tuning.TutorialPower;
 		}
 
-		const FVector2f Delta = State.Position - Mob.Position;
-		const float Reach = Mob.Radius + Tuning.JumperRadius;
-		if (Delta.SizeSquared() > Reach * Reach)
+		const float LevelFactor = 1.f + Tuning.PowerPerLevel * (State.Level - 1);
+		const float ChainFactor = 1.f + State.PerfectChain * Tuning.ChainAttackBonus;
+		const float SpeedFactor = FMath::Pow(FMath::Max(State.SpeedScale, 1.f), Tuning.SpeedPowerExponent);
+		return LevelFactor * GradeMultiplier(Tuning, State.LaunchGrade) * ChainFactor * SpeedFactor;
+	}
+
+	bool IsTapOnMob(const FYJJCombatTuning& Tuning, const FVector2f& TapPosition, const FYJJMobTarget& Mob)
+	{
+		const float Reach = Mob.Radius + Tuning.TapTolerance;
+		return Mob.Health > 0.f && FVector2f::DistSquared(TapPosition, Mob.Position) <= Reach * Reach;
+	}
+
+	bool CanDashTo(const FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget& Mob)
+	{
+		if (State.Mode != EYJJJumperMode::Airborne || State.IsDashing() || Mob.Health <= 0.f)
+		{
+			return false;
+		}
+		const float Range = GetAttackRange(State, Tuning) + Mob.Radius;
+		return FVector2f::DistSquared(State.Position, Mob.Position) <= Range * Range;
+	}
+
+	bool BeginDash(FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget& Mob)
+	{
+		if (!CanDashTo(State, Tuning, Mob))
+		{
+			return false;
+		}
+
+		State.DashMobId = Mob.Id;
+		State.DashFrom = State.Position;
+		State.DashTo = Mob.Position;
+		State.DashSavedVelocity = State.Velocity;
+		State.DashDuration = Tuning.DashDuration;
+		State.DashTimeLeft = Tuning.DashDuration;
+		return true;
+	}
+
+	bool StepDash(FYJJJumperState& State, float DeltaSeconds)
+	{
+		if (!State.IsDashing())
+		{
+			return false;
+		}
+
+		// 돌진 중엔 중력 없이 직선으로 날아간다
+		State.DashTimeLeft = FMath::Max(State.DashTimeLeft - DeltaSeconds, 0.f);
+		const float Alpha = 1.f - State.DashTimeLeft / FMath::Max(State.DashDuration, KINDA_SMALL_NUMBER);
+		State.Position = FMath::Lerp(State.DashFrom, State.DashTo, Alpha);
+		State.MaxHeightReached = FMath::Max(State.MaxHeightReached, State.Position.Y);
+		return State.DashTimeLeft <= 0.f;
+	}
+
+	FYJJHitResult FinishDash(FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget* Mob)
+	{
+		FYJJHitResult Result;
+
+		// 처치하든 못 하든 원래 궤도(속도)로 계속 날아간다
+		State.Velocity = State.DashSavedVelocity;
+		State.DashMobId = INDEX_NONE;
+		State.DashTimeLeft = 0.f;
+
+		if (!Mob || Mob->Health <= 0.f)
 		{
 			return Result;
 		}
 
 		Result.bHit = true;
 		Result.Damage = ComputeAttackPower(State, Tuning);
-		Result.bKilled = Result.Damage >= Mob.Health;
-
+		Result.bKilled = Result.Damage >= Mob->Health;
 		if (Result.bKilled)
 		{
-			// 관통: 진행 방향 유지, 속도만 조금 손해
-			State.Velocity *= Tuning.KillSpeedRetain;
-			Result.ScoreGained = FMath::RoundToInt(Mob.ScoreValue * (1.f + State.PerfectChain * Tuning.ChainScoreBonus));
+			Result.ScoreGained = FMath::RoundToInt(Mob->ScoreValue * (1.f + State.PerfectChain * Tuning.ChainScoreBonus));
+			Result.XPGained = State.bTutorial ? 0 : Mob->XPValue;
 			State.Score += Result.ScoreGained;
 			State.Kills++;
-		}
-		else
-		{
-			// 막힘: 몹 중심 반대 방향으로 튕겨 나오고 겹치지 않게 밀어낸다
-			const FVector2f Normal = Delta.IsNearlyZero() ? FVector2f(0.f, -1.f) : Delta.GetSafeNormal();
-			State.Velocity = Normal * Tuning.BlockedBounceSpeed;
-			State.Position = Mob.Position + Normal * (Reach + 1.f);
+			State.KillCombo++;
+			Result.LevelsGained = GainXP(State, Tuning, Result.XPGained);
 		}
 		return Result;
+	}
+
+	int32 XPToNextLevel(const FYJJCombatTuning& Tuning, int32 Level)
+	{
+		return FMath::Max(FMath::RoundToInt(Tuning.XPBase * FMath::Pow(static_cast<float>(FMath::Max(Level, 1)), Tuning.XPExponent)), 1);
+	}
+
+	int32 GainXP(FYJJJumperState& State, const FYJJCombatTuning& Tuning, int32 XP)
+	{
+		if (State.bTutorial || XP <= 0)
+		{
+			return 0;
+		}
+
+		int32 Gained = 0;
+		State.XP += XP;
+		for (int32 Need = XPToNextLevel(Tuning, State.Level); State.XP >= Need; Need = XPToNextLevel(Tuning, State.Level))
+		{
+			State.XP -= Need;
+			State.Level++;
+			Gained++;
+		}
+		return Gained;
 	}
 }

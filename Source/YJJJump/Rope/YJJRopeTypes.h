@@ -41,7 +41,7 @@ struct FYJJRopeTuning
 	float RopeDamping = 1.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float MaxDeflection = 220.f;
+	float MaxDeflection = 260.f;
 
 	// 로프 위에서 좌우 속도 감쇠 (1/s)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
@@ -82,7 +82,19 @@ struct FYJJRopeTuning
 	float MissMultiplier = 0.9f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float MaxLaunchSpeed = 7000.f;
+	float MaxLaunchSpeed = 400000.f;
+
+	// 속도감: 발사 속도가 이 값의 몇 배인지(SpeedScale)만큼 중력은 s배, 로프 강성은 s^2배.
+	// 한 번 비행하는 시간은 거의 그대로인데 속도와 높이는 s배로 커져서 점점 미친 듯이 빨라진다
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
+	float SpeedReference = 2500.f;
+
+	// 이번 비행에서 잡은 몬스터 1마리당 다음 발사 속도 보너스 (최대 KillComboMax마리)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
+	float KillComboLaunchBonus = 0.04f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
+	int32 KillComboMax = 10;
 
 	// 좌우 벽 (중심 X 기준 반폭). 벽에 부딪히면 튕겨 나옴
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World")
@@ -164,12 +176,40 @@ struct FYJJJumperState
 	UPROPERTY(BlueprintReadOnly)
 	EYJJBounceGrade LaunchGrade = EYJJBounceGrade::None;
 
+	// 속도 배율 (발사 속도 / SpeedReference, 최소 1). 중력과 로프를 이만큼 빠르게 돌린다
+	UPROPERTY(BlueprintReadOnly)
+	float SpeedScale = 1.f;
+
+	// 이번 비행에서 잡은 몬스터 수 (다음 발사 보너스)
+	UPROPERTY(BlueprintReadOnly)
+	int32 KillCombo = 0;
+
 	// 전투 결과 (서버 권한 값)
 	UPROPERTY(BlueprintReadOnly)
 	int32 Score = 0;
 
 	UPROPERTY(BlueprintReadOnly)
 	int32 Kills = 0;
+
+	// 성장. 튜토리얼 동안은 Lv 999Gp(구골플렉스) 장수풍뎅이
+	UPROPERTY(BlueprintReadOnly)
+	int32 Level = 1;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 XP = 0;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bTutorial = false;
+
+	// 탭한 몬스터에게 뿔 돌진 중 (돌진 중엔 중력 정지, 끝나면 원래 속도로 계속 비행)
+	int32 DashMobId = INDEX_NONE;
+	float DashTimeLeft = 0.f;
+	float DashDuration = 0.f;
+	FVector2f DashFrom = FVector2f::ZeroVector;
+	FVector2f DashTo = FVector2f::ZeroVector;
+	FVector2f DashSavedVelocity = FVector2f::ZeroVector;
+
+	bool IsDashing() const { return DashMobId != INDEX_NONE; }
 };
 
 // 한 스텝에서 일어난 일 (연출/UI용)

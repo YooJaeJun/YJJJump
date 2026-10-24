@@ -24,7 +24,7 @@ void AYJJMob::BeginPlay()
 	Super::BeginPlay();
 
 	Home = GetActorLocation();
-	Health = Data ? Data->MaxHealth : 1.f;
+	Health = (Data ? Data->MaxHealth : 1.f) * StatMultiplier;
 
 	if (Data)
 	{
@@ -61,7 +61,7 @@ void AYJJMob::Tick(float DeltaSeconds)
 		switch (Data->Movement)
 		{
 		case EYJJMobMovement::Patrol:
-			Offset.X = FMath::Sin(Phase) * Data->MoveRange;
+			Offset.X = FMath::Sin(Phase) * FMath::Min(Data->MoveRange, MaxMoveRange);
 			// 진행 방향을 바라본다
 			Facing = FMath::Cos(Phase) >= 0.f ? 1.f : -1.f;
 			break;
@@ -94,7 +94,8 @@ FYJJMobTarget AYJJMob::MakeTarget() const
 	Target.Position = FVector2f(Location.X, Location.Z);
 	Target.Radius = Data ? Data->Radius : 50.f;
 	Target.Health = Health;
-	Target.ScoreValue = Data ? Data->ScoreValue : 0;
+	Target.ScoreValue = Data ? FMath::RoundToInt(Data->ScoreValue * StatMultiplier) : 0;
+	Target.XPValue = Data ? FMath::Max(FMath::RoundToInt(Data->XPValue * StatMultiplier), 1) : 1;
 	return Target;
 }
 
@@ -108,7 +109,7 @@ bool AYJJMob::ApplyHit(float Damage)
 		return false;
 	}
 
-	const float EffectWidth = (Data ? Data->SpriteWidth : 120.f) * 1.6f;
+	const float EffectWidth = (Data ? Data->SpriteWidth : 120.f) * 1.2f;
 	AYJJHitEffect::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, 5.f, 0.f), EffectWidth, FLinearColor(1.f, 0.9f, 0.3f));
 	Destroy();
 	return true;

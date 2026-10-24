@@ -2,10 +2,11 @@
 
 
 #include "YJJJumpGameModeBase.h"
-#include "Combat/YJJMob.h"
 #include "Combat/YJJMobData.h"
+#include "Combat/YJJSkySpawner.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
+#include "PaperSprite.h"
 #include "Player/YJJJumper.h"
 #include "Player/YJJPlayerController.h"
 #include "Rope/YJJRope.h"
@@ -19,19 +20,20 @@ AYJJJumpGameModeBase::AYJJJumpGameModeBase()
 	HUDClass = AYJJHUD::StaticClass();
 
 	SpawnTable = TSoftObjectPtr<UYJJSpawnTableData>(FSoftObjectPath(YJJAssetPaths::SkySpawnTable));
+	DecorSprite = TSoftObjectPtr<UPaperSprite>(FSoftObjectPath(YJJAssetPaths::CloudDecorSprite));
 }
 
 void AYJJJumpGameModeBase::StartPlay()
 {
-	if (bSpawnTestTower && !TActorIterator<AYJJRope>(GetWorld()))
+	if (bSpawnStage && !TActorIterator<AYJJRope>(GetWorld()))
 	{
-		SpawnTestTower();
+		SpawnStage();
 	}
 
 	Super::StartPlay();
 }
 
-void AYJJJumpGameModeBase::SpawnTestTower()
+void AYJJJumpGameModeBase::SpawnStage()
 {
 	UWorld* World = GetWorld();
 
@@ -41,63 +43,21 @@ void AYJJJumpGameModeBase::SpawnTestTower()
 		Start = It->GetActorLocation();
 	}
 
-	const UYJJSpawnTableData* Table = SpawnTable.LoadSynchronous();
-
-	// 같은 시드면 항상 같은 탑 (나중에 랭킹 공정성용)
-	FRandomStream Random(TestTowerSeed);
-
-	// 첫 로프는 시작 지점 바로 아래, 중앙에 넓게
-	float Height = static_cast<float>(Start.Z) - 150.f;
-	for (int32 Index = 0; Index < TestRopeCount; ++Index)
+	// 로프는 딱 하나. 벽에서 벽까지 걸려 있어서 어디로 떨어져도 받아 준다
+	const FTransform RopeTransform(FVector(Start.X, Start.Y, Start.Z - 150.0));
+	if (AYJJRope* Rope = World->SpawnActorDeferred<AYJJRope>(AYJJRope::StaticClass(), RopeTransform))
 	{
-		const float Width = Index == 0 ? TestRopeWidthRange.Y : Random.FRandRange(TestRopeWidthRange.X, TestRopeWidthRange.Y);
-		const float MaxOffset = FMath::Max(TestTowerHalfWidth - Width * 0.5f, 0.f);
-		const float OffsetX = Index == 0 ? 0.f : Random.FRandRange(-MaxOffset, MaxOffset);
-
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		Params.bDeferConstruction = true;
-
-		const FTransform Transform(FVector(Start.X + OffsetX, Start.Y, Height));
-		if (AYJJRope* Rope = World->SpawnActor<AYJJRope>(AYJJRope::StaticClass(), Transform, Params))
-		{
-			Rope->Width = Width;
-			Rope->FinishSpawning(Transform);
-		}
-
-		const float NextHeight = Height + Random.FRandRange(TestRopeGapRange.X, TestRopeGapRange.Y);
-		if (Table && Index >= Table->SafeGapCount && Index < TestRopeCount - 1)
-		{
-			SpawnMobInGap(Random, *Table, Start, Height, NextHeight);
-		}
-		Height = NextHeight;
-	}
-}
-
-void AYJJJumpGameModeBase::SpawnMobInGap(FRandomStream& Random, const UYJJSpawnTableData& Table, const FVector& Start, float GapBottom, float GapTop)
-{
-	if (Random.FRand() > Table.MobChancePerGap)
-	{
-		return;
+		Rope->Width = StageHalfWidth * 2.f;
+		Rope->FinishSpawning(RopeTransform);
 	}
 
-	const FYJJMobSpawnEntry* Entry = Table.PickEntry(Random, GapBottom - static_cast<float>(Start.Z));
-	if (!Entry)
+	if (AYJJSkySpawner* Sky = World->SpawnActorDeferred<AYJJSkySpawner>(AYJJSkySpawner::StaticClass(), RopeTransform))
 	{
-		return;
-	}
-
-	// 좌우로 다니는 몹은 벽을 넘지 않게
-	const UYJJMobData* Data = Entry->Mob;
-	const float Travel = Data->Movement == EYJJMobMovement::Patrol ? Data->MoveRange : 0.f;
-	const float MaxOffset = FMath::Max(TestTowerHalfWidth - Data->Radius - Travel, 0.f);
-	const float Z = (GapBottom + GapTop) * 0.5f;
-	const FTransform Transform(FVector(Start.X + Random.FRandRange(-MaxOffset, MaxOffset), Start.Y, Z));
-
-	if (AYJJMob* Mob = GetWorld()->SpawnActorDeferred<AYJJMob>(AYJJMob::StaticClass(), Transform))
-	{
-		Mob->Data = Entry->Mob;
-		Mob->MovePhase = Random.FRandRange(0.f, UE_TWO_PI);
-		Mob->FinishSpawning(Transform);
+		Sky->SpawnTable = SpawnTable.LoadSynchronous();
+		Sky->DecorSprite = DecorSprite.LoadSynchronous();
+		Sky->Seed = StageSeed;
+		Sky->BaseHeight = static_cast<float>(RopeTransform.GetLocation().Z);
+		Sky->HalfWidth = StageHalfWidth;
+		Sky->FinishSpawning(RopeTransform);
 	}
 }

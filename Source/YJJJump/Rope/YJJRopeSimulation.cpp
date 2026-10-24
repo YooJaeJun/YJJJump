@@ -43,9 +43,13 @@ namespace YJJRopeSim
 
 		void Launch(FYJJJumperState& State, const FYJJRopeTuning& Tuning, FYJJSimEvents& OutEvents)
 		{
-			const float UpSpeed = FMath::Min(-State.DeflectionSpeed * State.PendingLaunchMultiplier, Tuning.MaxLaunchSpeed);
+			// 지난 비행에서 잡은 몬스터만큼 추가 가속
+			const float ComboBonus = 1.f + FMath::Min(State.KillCombo, Tuning.KillComboMax) * Tuning.KillComboLaunchBonus;
+			const float UpSpeed = FMath::Min(-State.DeflectionSpeed * State.PendingLaunchMultiplier * ComboBonus, Tuning.MaxLaunchSpeed);
 
 			State.Mode = EYJJJumperMode::Airborne;
+			State.KillCombo = 0;
+			State.SpeedScale = ComputeSpeedScale(Tuning, UpSpeed);
 			State.Velocity.Y = UpSpeed;
 			if (State.bHasPendingHorizontal)
 			{
@@ -72,7 +76,7 @@ namespace YJJRopeSim
 		{
 			const float PrevZ = State.Position.Y;
 
-			State.Velocity.Y -= Tuning.Gravity * Dt;
+			State.Velocity.Y -= Tuning.Gravity * State.SpeedScale * Dt;
 			State.Position += State.Velocity * Dt;
 
 			if (State.Velocity.Y >= 0.f)
@@ -122,9 +126,13 @@ namespace YJJRopeSim
 				return;
 			}
 
-			// 처짐은 아래(+). 중력은 처짐을 늘리고, 스프링/감쇠는 되돌린다
+			// 처짐은 아래(+). 중력은 처짐을 늘리고, 스프링/감쇠는 되돌린다.
+			// 빠를수록 로프도 단단해져서(강성 s^2) 처지는 깊이는 비슷하게 유지된다
+			const float Scale = State.SpeedScale;
 			const float PrevSpeed = State.DeflectionSpeed;
-			const float Accel = Tuning.Gravity - Tuning.RopeStiffness * State.Deflection - Tuning.RopeDamping * State.DeflectionSpeed;
+			const float Accel = Tuning.Gravity * Scale
+				- Tuning.RopeStiffness * Scale * Scale * State.Deflection
+				- Tuning.RopeDamping * Scale * State.DeflectionSpeed;
 			State.DeflectionSpeed += Accel * Dt;
 			State.Deflection += State.DeflectionSpeed * Dt;
 
@@ -160,16 +168,18 @@ namespace YJJRopeSim
 			}
 
 			// 에너지가 거의 다 빠지면 정지 -> 다시 드래그 가능
-			const float RestD = RestDeflection(Tuning);
+			const float RestD = RestDeflection(Tuning, Scale);
 			if (State.bReachedBottom
-				&& FMath::Abs(State.DeflectionSpeed) < Tuning.RestSpeedThreshold
+				&& FMath::Abs(State.DeflectionSpeed) < Tuning.RestSpeedThreshold * Scale
 				&& FMath::Abs(State.Deflection - RestD) < Tuning.RestDeflectionTolerance)
 			{
 				State.Mode = EYJJJumperMode::Resting;
-				State.Deflection = RestD;
+				State.SpeedScale = 1.f;
+				State.KillCombo = 0;
+				State.Deflection = RestDeflection(Tuning);
 				State.DeflectionSpeed = 0.f;
 				State.Velocity = FVector2f::ZeroVector;
-				State.Position.Y = State.RopeHeight - RestD;
+				State.Position.Y = State.RopeHeight - State.Deflection;
 				State.PendingLaunchMultiplier = 1.f;
 				State.bHasPendingHorizontal = false;
 				State.LastPressTime = -1.0;
@@ -194,9 +204,16 @@ namespace YJJRopeSim
 		}
 	}
 
-	float RestDeflection(const FYJJRopeTuning& Tuning)
+	float RestDeflection(const FYJJRopeTuning& Tuning, float SpeedScale)
 	{
-		return Tuning.RopeStiffness > 0.f ? Tuning.Gravity / Tuning.RopeStiffness : 0.f;
+		// 중력 s배, 강성 s^2배 -> 평형 처짐은 1/s배
+		const float Scale = FMath::Max(SpeedScale, 1.f);
+		return Tuning.RopeStiffness > 0.f ? Tuning.Gravity / (Tuning.RopeStiffness * Scale) : 0.f;
+	}
+
+	float ComputeSpeedScale(const FYJJRopeTuning& Tuning, float LaunchSpeed)
+	{
+		return FMath::Max(LaunchSpeed / FMath::Max(Tuning.SpeedReference, 1.f), 1.f);
 	}
 
 	void Step(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float CenterX, FYJJSimEvents& OutEvents)
@@ -253,6 +270,7 @@ namespace YJJRopeSim
 				State.Velocity.Y = FMath::Min(State.Velocity.Y * Multiplier, Tuning.MaxLaunchSpeed);
 				State.Velocity.X = AimSpeed;
 				State.LastLaunchSpeed = State.Velocity.Y;
+				State.SpeedScale = ComputeSpeedScale(Tuning, State.Velocity.Y);
 				State.LaunchGrade = State.CurrentBounceGrade;
 				return;
 			}
@@ -321,6 +339,8 @@ namespace YJJRopeSim
 	void PlaceOnRope(FYJJJumperState& State, const FYJJRopeTuning& Tuning, const FYJJRopeSegment& Rope, float X)
 	{
 		State.Mode = EYJJJumperMode::Resting;
+		State.SpeedScale = 1.f;
+		State.KillCombo = 0;
 		State.RopeId = Rope.Id;
 		State.LastRopeId = Rope.Id;
 		State.RopeHeight = Rope.Height;

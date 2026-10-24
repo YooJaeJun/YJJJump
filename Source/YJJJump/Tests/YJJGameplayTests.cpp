@@ -184,65 +184,159 @@ bool FYJJRopeDeterminismTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJCombatKillTest, "YJJJump.Combat.FastHitKills", YJJTests::Flags)
-bool FYJJCombatKillTest::RunTest(const FString& Parameters)
+namespace YJJTests
 {
-	const FYJJCombatTuning Tuning;
+	FYJJMobTarget MakeMob(const FVector2f& Position, float Health, int32 XP = 1)
+	{
+		FYJJMobTarget Mob;
+		Mob.Id = 7;
+		Mob.Position = Position;
+		Mob.Radius = 50.f;
+		Mob.Health = Health;
+		Mob.ScoreValue = 50;
+		Mob.XPValue = XP;
+		return Mob;
+	}
 
-	FYJJJumperState State;
-	State.Mode = EYJJJumperMode::Airborne;
-	State.Velocity = FVector2f(0.f, 3000.f);
-	State.LaunchGrade = EYJJBounceGrade::Perfect;
+	FYJJJumperState MakeFlying(const FVector2f& Velocity)
+	{
+		FYJJJumperState State;
+		State.Mode = EYJJJumperMode::Airborne;
+		State.Velocity = Velocity;
+		return State;
+	}
 
-	FYJJMobTarget Mob;
-	Mob.Id = 7;
-	Mob.Position = FVector2f(0.f, 30.f);
-	Mob.Radius = 50.f;
-	Mob.Health = 2.f;
-	Mob.ScoreValue = 100;
+	// 돌진을 끝까지 진행
+	FYJJHitResult RunDash(FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget& Mob)
+	{
+		for (int32 Step = 0; Step < 120 && !YJJCombat::StepDash(State, YJJRopeSim::FixedStep); ++Step)
+		{
+		}
+		return YJJCombat::FinishDash(State, Tuning, &Mob);
+	}
 
-	const FYJJHitResult Result = YJJCombat::ResolveHit(State, Tuning, Mob);
-	TestTrue(TEXT("Overlap hits"), Result.bHit);
-	TestTrue(FString::Printf(TEXT("Perfect fast hit kills (damage %.2f)"), Result.Damage), Result.bKilled);
-	TestTrue(TEXT("Keeps flying up through the mob"), State.Velocity.Y > 2000.f);
-	TestEqual(TEXT("Score added"), State.Score, 100);
-	TestEqual(TEXT("Kill counted"), State.Kills, 1);
+	// 로프에서 LaunchSpeed로 쏘아 올려 다시 로프에 닿을 때까지: (최고 높이, 비행 시간)
+	TPair<float, float> FlyFromRope(float LaunchSpeed, const FYJJRopeTuning& Tuning)
+	{
+		const TArray<FYJJRopeSegment> Ropes = MakeSingleRope();
+		FYJJJumperState State;
+		State.Mode = EYJJJumperMode::Airborne;
+		State.Velocity = FVector2f(0.f, LaunchSpeed);
+		State.SpeedScale = YJJRopeSim::ComputeSpeedScale(Tuning, LaunchSpeed);
+
+		float Apex = 0.f;
+		int32 Steps = 0;
+		for (; Steps < 120 * 60 && State.Mode == EYJJJumperMode::Airborne; ++Steps)
+		{
+			StepOnce(State, Tuning, Ropes);
+			Apex = FMath::Max(Apex, State.Position.Y);
+		}
+		return TPair<float, float>(Apex, Steps * YJJRopeSim::FixedStep);
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJSpeedScaleTest, "YJJJump.Rope.FasterMeansHigherNotLonger", YJJTests::Flags)
+bool FYJJSpeedScaleTest::RunTest(const FString& Parameters)
+{
+	const FYJJRopeTuning Tuning;
+	const TPair<float, float> Slow = YJJTests::FlyFromRope(Tuning.SpeedReference, Tuning);
+	const TPair<float, float> Fast = YJJTests::FlyFromRope(Tuning.SpeedReference * 4.f, Tuning);
+
+	// 4배 빠르면 4배 높이 가지만 비행 시간은 같다 -> 점점 미친 속도감
+	TestTrue(FString::Printf(TEXT("4x speed goes ~4x higher (%.0f vs %.0f)"), Fast.Key, Slow.Key), FMath::IsNearlyEqual(Fast.Key / Slow.Key, 4.f, 0.2f));
+	TestTrue(FString::Printf(TEXT("Flight time stays the same (%.2fs vs %.2fs)"), Fast.Value, Slow.Value), FMath::IsNearlyEqual(Fast.Value, Slow.Value, 0.05f));
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJCombatBlockedTest, "YJJJump.Combat.SlowHitBounces", YJJTests::Flags)
-bool FYJJCombatBlockedTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJKillComboTest, "YJJJump.Rope.KillsBoostNextLaunch", YJJTests::Flags)
+bool FYJJKillComboTest::RunTest(const FString& Parameters)
+{
+	const FYJJRopeTuning Tuning;
+	const TArray<FYJJRopeSegment> Ropes = YJJTests::MakeSingleRope();
+
+	auto LaunchSpeedWithKills = [&](int32 Kills)
+	{
+		FYJJJumperState State = YJJTests::MakeDropped(600.f);
+		State.KillCombo = Kills;
+		for (int32 Step = 0; Step < 2000; ++Step)
+		{
+			FYJJSimEvents Events;
+			YJJRopeSim::Step(State, Tuning, Ropes, 0.f, Events);
+			if (Events.bLaunched)
+			{
+				return State.LastLaunchSpeed;
+			}
+		}
+		return 0.f;
+	};
+
+	const float NoKills = LaunchSpeedWithKills(0);
+	const float FiveKills = LaunchSpeedWithKills(5);
+	TestTrue(FString::Printf(TEXT("Kills in the last flight boost the launch (%.0f > %.0f)"), FiveKills, NoKills), FiveKills > NoKills * 1.15f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJDashKillTest, "YJJJump.Combat.TapDashKills", YJJTests::Flags)
+bool FYJJDashKillTest::RunTest(const FString& Parameters)
+{
+	const FYJJCombatTuning Tuning;
+	FYJJJumperState State = YJJTests::MakeFlying(FVector2f(300.f, 2000.f));
+	State.LaunchGrade = EYJJBounceGrade::Perfect;
+	const FYJJMobTarget Mob = YJJTests::MakeMob(FVector2f(150.f, 250.f), 1.f, 5);
+
+	TestTrue(TEXT("Tap lands on the mob"), YJJCombat::IsTapOnMob(Tuning, FVector2f(170.f, 230.f), Mob));
+	TestTrue(TEXT("Dash starts"), YJJCombat::BeginDash(State, Tuning, Mob));
+	TestFalse(TEXT("Cannot start another dash mid-dash"), YJJCombat::CanDashTo(State, Tuning, Mob));
+
+	const FYJJHitResult Result = YJJTests::RunDash(State, Tuning, Mob);
+	TestTrue(TEXT("Dash hits"), Result.bHit);
+	TestTrue(TEXT("Lv1 perfect dash kills a 1 HP sparrow"), Result.bKilled);
+	TestTrue(TEXT("Ends at the mob"), State.Position.Equals(Mob.Position, 0.1f));
+	TestTrue(TEXT("Keeps flying on the original trajectory"), State.Velocity == FVector2f(300.f, 2000.f));
+	TestEqual(TEXT("Kill combo counted"), State.KillCombo, 1);
+	TestEqual(TEXT("5 XP levels up a Lv1 (needs 4)"), State.Level, 2);
+	TestEqual(TEXT("Leftover XP"), State.XP, 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJDashRulesTest, "YJJJump.Combat.DashRules", YJJTests::Flags)
+bool FYJJDashRulesTest::RunTest(const FString& Parameters)
 {
 	const FYJJCombatTuning Tuning;
 
-	FYJJJumperState State;
-	State.Mode = EYJJJumperMode::Airborne;
-	State.Velocity = FVector2f(0.f, 600.f);
-
-	FYJJMobTarget Mob;
-	Mob.Position = FVector2f(0.f, 40.f);
-	Mob.Radius = 50.f;
-	Mob.Health = 10.f;
-
-	const FYJJHitResult Result = YJJCombat::ResolveHit(State, Tuning, Mob);
-	TestTrue(TEXT("Overlap hits"), Result.bHit);
-	TestFalse(TEXT("Slow hit does not kill a tough mob"), Result.bKilled);
-	TestTrue(TEXT("Bounced back down"), State.Velocity.Y < 0.f);
-	TestTrue(TEXT("Pushed out of the mob"), FVector2f::Distance(State.Position, Mob.Position) > Mob.Radius + Tuning.JumperRadius);
+	FYJJJumperState Flying = YJJTests::MakeFlying(FVector2f(0.f, 1000.f));
+	TestFalse(TEXT("Out of range"), YJJCombat::CanDashTo(Flying, Tuning, YJJTests::MakeMob(FVector2f(0.f, 3000.f), 1.f)));
 
 	FYJJJumperState OnRope;
 	OnRope.Mode = EYJJJumperMode::OnRope;
-	TestFalse(TEXT("No hits while on the rope"), YJJCombat::ResolveHit(OnRope, Tuning, Mob).bHit);
+	TestFalse(TEXT("No dashing from the rope"), YJJCombat::CanDashTo(OnRope, Tuning, YJJTests::MakeMob(FVector2f(0.f, 100.f), 1.f)));
+
+	// 튼튼한 몹은 한 방에 안 죽고 비행은 그대로 이어진다
+	const FYJJMobTarget Tough = YJJTests::MakeMob(FVector2f(0.f, 200.f), 50.f);
+	TestTrue(TEXT("Dash starts"), YJJCombat::BeginDash(Flying, Tuning, Tough));
+	const FYJJHitResult Result = YJJTests::RunDash(Flying, Tuning, Tough);
+	TestTrue(TEXT("Hit"), Result.bHit);
+	TestFalse(TEXT("Tough mob survives"), Result.bKilled);
+	TestTrue(TEXT("Velocity restored"), Flying.Velocity == FVector2f(0.f, 1000.f));
+	TestEqual(TEXT("No kill combo"), Flying.KillCombo, 0);
+
+	// 튜토리얼 Lv 999Gp는 뭐든 한 방, 경험치는 안 쌓인다
+	FYJJJumperState Tutorial = YJJTests::MakeFlying(FVector2f(0.f, 1000.f));
+	Tutorial.bTutorial = true;
+	TestTrue(TEXT("Tutorial range is huge"), YJJCombat::GetAttackRange(Tutorial, Tuning) >= Tuning.MaxAttackRange);
+	TestTrue(TEXT("Dash starts"), YJJCombat::BeginDash(Tutorial, Tuning, Tough));
+	const FYJJHitResult TutorialResult = YJJTests::RunDash(Tutorial, Tuning, Tough);
+	TestTrue(TEXT("Lv 999Gp one-shots"), TutorialResult.bKilled);
+	TestEqual(TEXT("No XP in tutorial"), Tutorial.XP, 0);
+	TestEqual(TEXT("Level unchanged in tutorial"), Tutorial.Level, 1);
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJCombatPowerTest, "YJJJump.Combat.PowerFollowsGrade", YJJTests::Flags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJCombatPowerTest, "YJJJump.Combat.PowerFollowsGradeLevelSpeed", YJJTests::Flags)
 bool FYJJCombatPowerTest::RunTest(const FString& Parameters)
 {
 	const FYJJCombatTuning Tuning;
-
 	FYJJJumperState State;
-	State.Velocity = FVector2f(0.f, 2000.f);
 
 	State.LaunchGrade = EYJJBounceGrade::Miss;
 	const float Miss = YJJCombat::ComputeAttackPower(State, Tuning);
@@ -254,9 +348,16 @@ bool FYJJCombatPowerTest::RunTest(const FString& Parameters)
 	const float Perfect = YJJCombat::ComputeAttackPower(State, Tuning);
 	State.PerfectChain = 3;
 	const float Chained = YJJCombat::ComputeAttackPower(State, Tuning);
+	State.Level = 10;
+	const float Leveled = YJJCombat::ComputeAttackPower(State, Tuning);
+	State.SpeedScale = 4.f;
+	const float Fast = YJJCombat::ComputeAttackPower(State, Tuning);
 
 	TestTrue(TEXT("Miss < None < Good < Perfect"), Miss < None && None < Good && Good < Perfect);
 	TestTrue(TEXT("Perfect chain adds power"), Chained > Perfect);
+	TestTrue(TEXT("Levels add power"), Leveled > Chained);
+	TestTrue(TEXT("Speed adds power"), Fast > Leveled);
+	TestTrue(TEXT("Range grows with level"), YJJCombat::GetAttackRange(State, Tuning) > Tuning.BaseAttackRange);
 	return true;
 }
 
