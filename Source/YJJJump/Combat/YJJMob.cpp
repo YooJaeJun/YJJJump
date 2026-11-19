@@ -1,10 +1,11 @@
 #include "Combat/YJJMob.h"
-#include "Combat/YJJMobData.h"
 #include "Combat/YJJMobSubsystem.h"
+#include "Data/YJJData.h"
 #include "Visual/YJJHitEffect.h"
 #include "Visual/YJJSpriteFx.h"
 #include "Visual/YJJSpriteUtils.h"
 #include "YJJAssetPaths.h"
+#include "YJJJump.h"
 #include "PaperSprite.h"
 #include "Engine/World.h"
 #include "PaperSpriteComponent.h"
@@ -26,14 +27,23 @@ void AYJJMob::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Home = GetActorLocation();
-	Health = (Data ? Data->MaxHealth : 1.f) * StatMultiplier;
-
-	if (Data)
+	if (const FYJJMobRow* Row = FYJJData::Get().FindMob(MobType))
 	{
-		YJJSpriteUtils::SetSpriteWithWidth(Sprite, Data->Sprite, Data->SpriteWidth);
-		BaseScale = static_cast<float>(Sprite->GetRelativeScale3D().X);
+		Def = *Row;
 	}
+	else
+	{
+		UE_LOG(LogYJJJump, Error, TEXT("[Mob] Mobs.csv 에 %s 가 없다"), *MobType.ToString());
+	}
+
+	Home = GetActorLocation();
+	Health = Def.MaxHealth * StatMultiplier;
+
+	IdleSprite = Def.Sprite.LoadSynchronous();
+	FlapSprite = Def.FlapSprite.LoadSynchronous();
+	HitSprite = Def.HitSprite.LoadSynchronous();
+	YJJSpriteUtils::SetSpriteWithWidth(Sprite, IdleSprite, Def.SpriteWidth);
+	BaseScale = static_cast<float>(Sprite->GetRelativeScale3D().X);
 
 	if (UYJJMobSubsystem* Mobs = GetWorld()->GetSubsystem<UYJJMobSubsystem>())
 	{
@@ -62,33 +72,31 @@ void AYJJMob::Tick(float DeltaSeconds)
 		return;
 	}
 
-	HitPunch = FMath::Max(HitPunch - DeltaSeconds * 4.f, 0.f);
+	const FYJJMobFxTuning& Fx = FYJJData::Get().MobFx;
+	HitPunch = FMath::Max(HitPunch - DeltaSeconds * Fx.HitPunchDecay, 0.f);
 
 	FVector Offset = FVector::ZeroVector;
-	if (Data)
+	const float Phase = UE_TWO_PI * Age / FMath::Max(Def.MovePeriod, KINDA_SMALL_NUMBER) + MovePhase;
+	switch (Def.Movement)
 	{
-		const float Phase = UE_TWO_PI * Age / Data->MovePeriod + MovePhase;
-		switch (Data->Movement)
-		{
-		case EYJJMobMovement::Patrol:
-			Offset.X = FMath::Sin(Phase) * FMath::Min(Data->MoveRange, MaxMoveRange);
-			// 진행 방향을 바라본다
-			Facing = FMath::Cos(Phase) >= 0.f ? 1.f : -1.f;
-			break;
-		case EYJJMobMovement::Hover:
-			Offset.Z = FMath::Sin(Phase) * Data->MoveRange;
-			break;
-		default:
-			Offset.Z = FMath::Sin(Phase) * 12.f;
-			break;
-		}
+	case EYJJMobMovement::Patrol:
+		Offset.X = FMath::Sin(Phase) * FMath::Min(Def.MoveRange, MaxMoveRange);
+		// 진행 방향을 바라본다
+		Facing = FMath::Cos(Phase) >= 0.f ? 1.f : -1.f;
+		break;
+	case EYJJMobMovement::Hover:
+		Offset.Z = FMath::Sin(Phase) * Def.MoveRange;
+		break;
+	default:
+		Offset.Z = FMath::Sin(Phase) * Fx.IdleBob;
+		break;
+	}
 
-		// 날갯짓: 두 프레임을 번갈아
-		if (Data->FlapSprite)
-		{
-			const bool bWingsUp = FMath::FloorToInt((Age + MovePhase) / FMath::Max(Data->FlapInterval, 0.02f)) % 2 == 1;
-			Sprite->SetSprite(bWingsUp ? Data->FlapSprite.Get() : Data->Sprite.Get());
-		}
+	// 날갯짓: 두 프레임을 번갈아
+	if (FlapSprite)
+	{
+		const bool bWingsUp = FMath::FloorToInt((Age + MovePhase) / FMath::Max(Def.FlapInterval, Fx.MinFlapInterval)) % 2 == 1;
+		Sprite->SetSprite(bWingsUp ? FlapSprite.Get() : IdleSprite.Get());
 	}
 	SetActorLocation(Home + Offset);
 	UpdateVisualScale();
@@ -97,9 +105,10 @@ void AYJJMob::Tick(float DeltaSeconds)
 void AYJJMob::UpdateVisualScale()
 {
 	// 맞으면 잠깐 커졌다 돌아오고 빨갛게 번쩍
-	const float Punch = 1.f + HitPunch * 0.3f;
+	const FYJJData& Data = FYJJData::Get();
+	const float Punch = 1.f + HitPunch * Data.MobFx.HitPunchScale;
 	Sprite->SetRelativeScale3D(FVector(BaseScale * Punch * Facing, BaseScale, BaseScale * Punch));
-	Sprite->SetSpriteColor(FLinearColor::LerpUsingHSV(FLinearColor::White, FLinearColor(1.f, 0.3f, 0.3f), HitPunch));
+	Sprite->SetSpriteColor(FLinearColor::LerpUsingHSV(FLinearColor::White, Data.Colors.MobHitFlash, HitPunch));
 }
 
 FYJJMobTarget AYJJMob::MakeTarget() const
@@ -109,10 +118,10 @@ FYJJMobTarget AYJJMob::MakeTarget() const
 	FYJJMobTarget Target;
 	Target.Id = MobId;
 	Target.Position = FVector2f(Location.X, Location.Z);
-	Target.Radius = Data ? Data->Radius : 50.f;
+	Target.Radius = Def.Radius;
 	Target.Health = Health;
-	Target.ScoreValue = Data ? FMath::RoundToInt(Data->ScoreValue * StatMultiplier) : 0;
-	Target.XPValue = Data ? FMath::Max(FMath::RoundToInt(Data->XPValue * StatMultiplier), 1) : 1;
+	Target.ScoreValue = FMath::RoundToInt(Def.ScoreValue * StatMultiplier);
+	Target.XPValue = FMath::Max(FMath::RoundToInt(Def.XPValue * StatMultiplier), 1);
 	return Target;
 }
 
@@ -135,12 +144,6 @@ bool AYJJMob::ApplyHit(float Damage)
 	return true;
 }
 
-namespace
-{
-	constexpr float DeathFreezeTime = 0.14f;	// 히트스톱 동안 제자리에서 번쩍이며 떨기
-	constexpr float DeathFlyTime = 0.55f;		// 빙글빙글 날아가기
-}
-
 void AYJJMob::BeginDeath()
 {
 	// 더 이상 탭/스폰 대상이 아니다. 연출이 끝나면 사라진다
@@ -153,31 +156,30 @@ void AYJJMob::BeginDeath()
 	}
 
 	// 기절 프레임 (X 눈, 혹)
-	if (Data)
-	{
-		Sprite->SetSprite(Data->HitSprite ? Data->HitSprite.Get() : Data->Sprite.Get());
-	}
+	Sprite->SetSprite(HitSprite ? HitSprite.Get() : IdleSprite.Get());
 
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJMobFxTuning& Fx = Data.MobFx;
 	const FVector Center = GetActorLocation();
-	const float Width = Data ? Data->SpriteWidth : 120.f;
-	AYJJHitEffect::Spawn(GetWorld(), Center + FVector(0.f, 30.f, 0.f), Width * 1.1f, FLinearColor(1.f, 0.9f, 0.3f));
+	const float Width = Def.SpriteWidth;
+	AYJJHitEffect::Spawn(GetWorld(), Center + FVector(0.f, Fx.ImpactDepth, 0.f), Width * Fx.ImpactWidthRatio, Data.Colors.MobDeathImpact);
 
 	// 깃털이 사방으로 빠진다
 	if (UPaperSprite* Feather = YJJSpriteUtils::LoadSprite(YJJAssetPaths::FeatherSprite))
 	{
-		const int32 Count = Data ? Data->DeathFeathers : 6;
+		const int32 Count = Def.DeathFeathers;
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
-			const float Angle = UE_TWO_PI * (Index + FMath::FRand() * 0.5f) / FMath::Max(Count, 1);
+			const float Angle = UE_TWO_PI * (Index + FMath::FRand() * Fx.FeatherAngleJitter) / FMath::Max(Count, 1);
 			FYJJSpriteFxParams Params;
 			Params.Frames = { Feather };
-			Params.Lifetime = FMath::FRandRange(0.6f, 0.9f);
-			Params.Width = Width * 0.42f;
-			Params.Velocity = FVector(FMath::Cos(Angle), 0.f, FMath::Sin(Angle) + 0.4f) * FMath::FRandRange(350.f, 600.f);
-			Params.Gravity = 900.f;
-			Params.SpinDegreesPerSecond = FMath::FRandRange(-720.f, 720.f);
-			Params.EndScale = 0.6f;
-			AYJJSpriteFx::Spawn(GetWorld(), Center + FVector(0.f, 25.f, 0.f), Params);
+			Params.Lifetime = FMath::FRandRange(Fx.FeatherLifeMin, Fx.FeatherLifeMax);
+			Params.Width = Width * Fx.FeatherWidthRatio;
+			Params.Velocity = FVector(FMath::Cos(Angle), 0.f, FMath::Sin(Angle) + Fx.FeatherUpBias) * FMath::FRandRange(Fx.FeatherSpeedMin, Fx.FeatherSpeedMax);
+			Params.Gravity = Fx.FeatherGravity;
+			Params.SpinDegreesPerSecond = FMath::FRandRange(-Fx.FeatherSpinMax, Fx.FeatherSpinMax);
+			Params.EndScale = Fx.FeatherEndScale;
+			AYJJSpriteFx::Spawn(GetWorld(), Center + FVector(0.f, Fx.FeatherDepth, 0.f), Params);
 		}
 	}
 
@@ -189,22 +191,24 @@ void AYJJMob::TickDeath(float DeltaSeconds)
 {
 	DeathAge += DeltaSeconds;
 
-	if (DeathAge < DeathFreezeTime)
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJMobFxTuning& Fx = Data.MobFx;
+	if (DeathAge < Fx.DeathFreezeTime)
 	{
-		const float Shake = 14.f;
+		const float Shake = Fx.DeathShake;
 		Sprite->SetRelativeLocation(FVector(FMath::FRandRange(-Shake, Shake), 0.f, FMath::FRandRange(-Shake, Shake)));
-		Sprite->SetRelativeScale3D(FVector(BaseScale * 1.7f * Facing, BaseScale, BaseScale * 1.55f));
-		const bool bFlash = FMath::FloorToInt(DeathAge / 0.035f) % 2 == 0;
-		Sprite->SetSpriteColor(bFlash ? FLinearColor(1.f, 0.3f, 0.3f) : FLinearColor(1.f, 1.f, 0.6f));
+		Sprite->SetRelativeScale3D(FVector(BaseScale * Fx.DeathFreezeScaleX * Facing, BaseScale, BaseScale * Fx.DeathFreezeScaleZ));
+		const bool bFlash = FMath::FloorToInt(DeathAge / Fx.DeathFlashInterval) % 2 == 0;
+		Sprite->SetSpriteColor(bFlash ? Data.Colors.MobHitFlash : Data.Colors.MobDeathFlash);
 		return;
 	}
 
-	const float Width = Data ? Data->SpriteWidth : 120.f;
-	const float T = FMath::Clamp((DeathAge - DeathFreezeTime) / DeathFlyTime, 0.f, 1.f);
-	const FVector Offset(DeathSpin * 300.f * T, 0.f, 260.f * T - 520.f * T * T);
+	const float Width = Def.SpriteWidth;
+	const float T = FMath::Clamp((DeathAge - Fx.DeathFreezeTime) / Fx.DeathFlyTime, 0.f, 1.f);
+	const FVector Offset(DeathSpin * Fx.DeathFlyDistance * T, 0.f, Fx.DeathFlyRise * T - Fx.DeathFlyDrop * T * T);
 	Sprite->SetRelativeLocation(Offset);
-	Sprite->SetRelativeRotation(FRotator(DeathSpin * 540.f * T, 0.f, 0.f));
-	const float Shrink = FMath::Lerp(1.55f, 0.9f, T);
+	Sprite->SetRelativeRotation(FRotator(DeathSpin * Fx.DeathSpinDegrees * T, 0.f, 0.f));
+	const float Shrink = FMath::Lerp(Fx.DeathShrinkStart, Fx.DeathShrinkEnd, T);
 	Sprite->SetRelativeScale3D(FVector(BaseScale * Shrink * Facing, BaseScale, BaseScale * Shrink));
 	Sprite->SetSpriteColor(FLinearColor::White);
 
@@ -214,16 +218,19 @@ void AYJJMob::TickDeath(float DeltaSeconds)
 		bSpawnedStars = true;
 		if (UPaperSprite* Star = YJJSpriteUtils::LoadSprite(YJJAssetPaths::DizzyStarSprite))
 		{
-			for (int32 Index = 0; Index < 3; ++Index)
+			// 가운데 별을 기준으로 좌우에 나란히
+			const float Middle = (Fx.StarCount - 1) * 0.5f;
+			for (int32 Index = 0; Index < Fx.StarCount; ++Index)
 			{
+				const float Side = Index - Middle;
 				FYJJSpriteFxParams Params;
 				Params.Frames = { Star };
-				Params.Lifetime = DeathFlyTime;
-				Params.Width = Width * 0.32f;
-				Params.Velocity = FVector(DeathSpin * 300.f / DeathFlyTime * 0.6f + (Index - 1) * 120.f, 0.f, 180.f);
-				Params.SpinDegreesPerSecond = 540.f;
-				Params.EndScale = 0.5f;
-				AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + FVector((Index - 1) * Width * 0.2f, 35.f, Width * 0.45f), Params);
+				Params.Lifetime = Fx.DeathFlyTime;
+				Params.Width = Width * Fx.StarWidthRatio;
+				Params.Velocity = FVector(DeathSpin * Fx.DeathFlyDistance / Fx.DeathFlyTime * Fx.StarFollowRatio + Side * Fx.StarSpread, 0.f, Fx.StarRise);
+				Params.SpinDegreesPerSecond = Fx.StarSpin;
+				Params.EndScale = Fx.StarEndScale;
+				AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + FVector(Side * Width * Fx.StarSpacingRatio, Fx.StarDepth, Width * Fx.StarHeightRatio), Params);
 			}
 		}
 	}
@@ -233,12 +240,12 @@ void AYJJMob::TickDeath(float DeltaSeconds)
 		// 마무리 "뿅" 연기
 		FYJJSpriteFxParams Poof;
 		Poof.Frames = YJJSpriteUtils::LoadPoofFrames();
-		Poof.FrameTime = 0.12f;
-		Poof.Lifetime = 0.28f;
-		Poof.Width = Width * 1.5f;
-		Poof.StartScale = 0.7f;
-		Poof.EndScale = 1.2f;
-		AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + Offset + FVector(0.f, 30.f, 0.f), Poof);
+		Poof.FrameTime = Fx.PoofFrameTime;
+		Poof.Lifetime = Fx.PoofLifetime;
+		Poof.Width = Width * Fx.PoofWidthRatio;
+		Poof.StartScale = Fx.PoofStartScale;
+		Poof.EndScale = Fx.PoofEndScale;
+		AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + Offset + FVector(0.f, Fx.PoofDepth, 0.f), Poof);
 		Destroy();
 	}
 }

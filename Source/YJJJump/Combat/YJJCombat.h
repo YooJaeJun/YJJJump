@@ -30,4 +30,7 @@ namespace YJJCombat
 
 	// 경험치를 더하고 오른 레벨 수를 돌려준다
 	YJJJUMP_API int32 GainXP(FYJJJumperState& State, const FYJJCombatTuning& Tuning, int32 XP);
+
+	// 발사 판정에 따른 공격 배율
+	YJJJUMP_API float GradeMultiplier(const FYJJCombatTuning& Tuning, EYJJBounceGrade Grade);
 }

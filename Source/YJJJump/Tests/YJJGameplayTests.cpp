@@ -3,101 +3,17 @@
 // 또는 Tools/RunTests.ps1
 
 #include "Combat/YJJCombat.h"
+#include "Data/YJJData.h"
 #include "Rope/YJJRopeSimulation.h"
+#include "Tests/YJJTestHelpers.h"
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-namespace YJJTests
-{
-	constexpr EAutomationTestFlags Flags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter;
-
-	TArray<FYJJRopeSegment> MakeSingleRope()
-	{
-		FYJJRopeSegment Rope;
-		Rope.Id = 0;
-		Rope.MinX = -500.f;
-		Rope.MaxX = 500.f;
-		Rope.Height = 0.f;
-		return { Rope };
-	}
-
-	void StepOnce(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes)
-	{
-		FYJJSimEvents Events;
-		YJJRopeSim::Step(State, Tuning, Ropes, 0.f, Events);
-	}
-
-	// 로프 위 Height에서 떨어뜨린 상태
-	FYJJJumperState MakeDropped(float Height)
-	{
-		FYJJJumperState State;
-		State.Mode = EYJJJumperMode::Airborne;
-		State.Position = FVector2f(0.f, Height);
-		return State;
-	}
-
-	// 최저점에 도달하는 스텝 수 (시뮬레이션이 결정적이라 미리 계산 가능)
-	int32 StepsUntilBottom(FYJJJumperState State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes)
-	{
-		for (int32 Step = 1; Step < 2000; ++Step)
-		{
-			StepOnce(State, Tuning, Ropes);
-			if (State.Mode == EYJJJumperMode::OnRope && State.bReachedBottom)
-			{
-				return Step;
-			}
-		}
-		return INDEX_NONE;
-	}
-
-	enum class EPressTiming { None, Early, OnBottom, Late };
-
-	// 떨어져서 한 번 튕길 때까지 돌리고 상태를 돌려준다
-	FYJJJumperState RunBounce(EPressTiming Timing, const FYJJRopeTuning& Tuning)
-	{
-		const TArray<FYJJRopeSegment> Ropes = MakeSingleRope();
-		FYJJJumperState State = MakeDropped(600.f);
-		const int32 BottomStep = StepsUntilBottom(State, Tuning, Ropes);
-		const int32 EarlySteps = FMath::RoundToInt(0.03f / YJJRopeSim::FixedStep);
-		const int32 LateSteps = FMath::RoundToInt(0.10f / YJJRopeSim::FixedStep);
-
-		int32 PressStep = INDEX_NONE;
-		switch (Timing)
-		{
-		case EPressTiming::Early: PressStep = BottomStep - EarlySteps; break;
-		case EPressTiming::OnBottom: PressStep = BottomStep; break;
-		case EPressTiming::Late: PressStep = BottomStep + LateSteps; break;
-		default: break;
-		}
-
-		bool bLeftRope = false;
-		for (int32 Step = 1; Step < 2000; ++Step)
-		{
-			StepOnce(State, Tuning, Ropes);
-			if (Step == PressStep)
-			{
-				FYJJSimEvents Events;
-				YJJRopeSim::PressBounce(State, Tuning, 0.f, Events);
-			}
-			if (State.Mode == EYJJJumperMode::OnRope)
-			{
-				bLeftRope = true;
-			}
-			// 발사 후 늦은 입력 판정 창까지 지나면 끝
-			if (bLeftRope && State.Mode == EYJJJumperMode::Airborne && Step > FMath::Max(PressStep, BottomStep) + LateSteps + 2)
-			{
-				break;
-			}
-		}
-		return State;
-	}
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJRopeDragLaunchTest, "YJJJump.Rope.DragLaunchClimbs", YJJTests::Flags)
 bool FYJJRopeDragLaunchTest::RunTest(const FString& Parameters)
 {
-	const FYJJRopeTuning Tuning;
+	const FYJJRopeTuning& Tuning = FYJJData::Get().Rope;
 	const TArray<FYJJRopeSegment> Ropes = YJJTests::MakeSingleRope();
 
 	FYJJJumperState State;
@@ -136,11 +52,11 @@ bool FYJJRopeDragLaunchTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJRopeSettlesTest, "YJJJump.Rope.NoInputSettles", YJJTests::Flags)
 bool FYJJRopeSettlesTest::RunTest(const FString& Parameters)
 {
-	const FYJJRopeTuning Tuning;
+	const FYJJRopeTuning& Tuning = FYJJData::Get().Rope;
 	const TArray<FYJJRopeSegment> Ropes = YJJTests::MakeSingleRope();
-	FYJJJumperState State = YJJTests::MakeDropped(300.f);
+	FYJJJumperState State = YJJTests::MakeDropped(YJJTests::LowDropHeight);
 
-	for (int32 Step = 0; Step < 120 * 30 && State.Mode != EYJJJumperMode::Resting; ++Step)
+	for (int32 Step = 0; Step * YJJRopeSim::FixedStep < YJJTests::SettleSeconds && State.Mode != EYJJJumperMode::Resting; ++Step)
 	{
 		YJJTests::StepOnce(State, Tuning, Ropes);
 	}
@@ -153,7 +69,7 @@ bool FYJJRopeSettlesTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJRopeTimingTest, "YJJJump.Rope.TimingGrades", YJJTests::Flags)
 bool FYJJRopeTimingTest::RunTest(const FString& Parameters)
 {
-	const FYJJRopeTuning Tuning;
+	const FYJJRopeTuning& Tuning = FYJJData::Get().Rope;
 	using YJJTests::EPressTiming;
 
 	const FYJJJumperState None = YJJTests::RunBounce(EPressTiming::None, Tuning);
@@ -179,7 +95,7 @@ bool FYJJRopeTimingTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJRopeDeterminismTest, "YJJJump.Rope.Deterministic", YJJTests::Flags)
 bool FYJJRopeDeterminismTest::RunTest(const FString& Parameters)
 {
-	const FYJJRopeTuning Tuning;
+	const FYJJRopeTuning& Tuning = FYJJData::Get().Rope;
 	const FYJJJumperState A = YJJTests::RunBounce(YJJTests::EPressTiming::Early, Tuning);
 	const FYJJJumperState B = YJJTests::RunBounce(YJJTests::EPressTiming::Early, Tuning);
 
@@ -190,61 +106,10 @@ bool FYJJRopeDeterminismTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-namespace YJJTests
-{
-	FYJJMobTarget MakeMob(const FVector2f& Position, float Health, int32 XP = 1)
-	{
-		FYJJMobTarget Mob;
-		Mob.Id = 7;
-		Mob.Position = Position;
-		Mob.Radius = 50.f;
-		Mob.Health = Health;
-		Mob.ScoreValue = 50;
-		Mob.XPValue = XP;
-		return Mob;
-	}
-
-	FYJJJumperState MakeFlying(const FVector2f& Velocity)
-	{
-		FYJJJumperState State;
-		State.Mode = EYJJJumperMode::Airborne;
-		State.Velocity = Velocity;
-		return State;
-	}
-
-	// 돌진을 끝까지 진행
-	FYJJHitResult RunDash(FYJJJumperState& State, const FYJJCombatTuning& Tuning, const FYJJMobTarget& Mob)
-	{
-		for (int32 Step = 0; Step < 120 && !YJJCombat::StepDash(State, YJJRopeSim::FixedStep); ++Step)
-		{
-		}
-		return YJJCombat::FinishDash(State, Tuning, &Mob);
-	}
-
-	// 로프에서 LaunchSpeed로 쏘아 올려 다시 로프에 닿을 때까지: (최고 높이, 비행 시간)
-	TPair<float, float> FlyFromRope(float LaunchSpeed, const FYJJRopeTuning& Tuning)
-	{
-		const TArray<FYJJRopeSegment> Ropes = MakeSingleRope();
-		FYJJJumperState State;
-		State.Mode = EYJJJumperMode::Airborne;
-		State.Velocity = FVector2f(0.f, LaunchSpeed);
-		State.SpeedScale = YJJRopeSim::ComputeSpeedScale(Tuning, LaunchSpeed);
-
-		float Apex = 0.f;
-		int32 Steps = 0;
-		for (; Steps < 120 * 60 && State.Mode == EYJJJumperMode::Airborne; ++Steps)
-		{
-			StepOnce(State, Tuning, Ropes);
-			Apex = FMath::Max(Apex, State.Position.Y);
-		}
-		return TPair<float, float>(Apex, Steps * YJJRopeSim::FixedStep);
-	}
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJSpeedScaleTest, "YJJJump.Rope.FasterMeansHigherNotLonger", YJJTests::Flags)
 bool FYJJSpeedScaleTest::RunTest(const FString& Parameters)
 {
-	const FYJJRopeTuning Tuning;
+	const FYJJRopeTuning& Tuning = FYJJData::Get().Rope;
 	const TPair<float, float> Slow = YJJTests::FlyFromRope(Tuning.SpeedReference, Tuning);
 	const TPair<float, float> Fast = YJJTests::FlyFromRope(Tuning.SpeedReference * 4.f, Tuning);
 
@@ -257,14 +122,14 @@ bool FYJJSpeedScaleTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJKillComboTest, "YJJJump.Rope.KillsBoostNextLaunch", YJJTests::Flags)
 bool FYJJKillComboTest::RunTest(const FString& Parameters)
 {
-	const FYJJRopeTuning Tuning;
+	const FYJJRopeTuning& Tuning = FYJJData::Get().Rope;
 	const TArray<FYJJRopeSegment> Ropes = YJJTests::MakeSingleRope();
 
 	auto LaunchSpeedWithKills = [&](int32 Kills)
 	{
-		FYJJJumperState State = YJJTests::MakeDropped(600.f);
+		FYJJJumperState State = YJJTests::MakeDropped(YJJTests::DropHeight);
 		State.KillCombo = Kills;
-		for (int32 Step = 0; Step < 2000; ++Step)
+		for (int32 Step = 0; Step < YJJTests::MaxSteps; ++Step)
 		{
 			FYJJSimEvents Events;
 			YJJRopeSim::Step(State, Tuning, Ropes, 0.f, Events);
@@ -285,7 +150,7 @@ bool FYJJKillComboTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJDashKillTest, "YJJJump.Combat.TapDashKills", YJJTests::Flags)
 bool FYJJDashKillTest::RunTest(const FString& Parameters)
 {
-	const FYJJCombatTuning Tuning;
+	const FYJJCombatTuning& Tuning = FYJJData::Get().Combat;
 	FYJJJumperState State = YJJTests::MakeFlying(FVector2f(300.f, 2000.f));
 	State.LaunchGrade = EYJJBounceGrade::Perfect;
 	const FYJJMobTarget Mob = YJJTests::MakeMob(FVector2f(150.f, 250.f), 1.f, 5);
@@ -308,7 +173,7 @@ bool FYJJDashKillTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJDashRulesTest, "YJJJump.Combat.DashRules", YJJTests::Flags)
 bool FYJJDashRulesTest::RunTest(const FString& Parameters)
 {
-	const FYJJCombatTuning Tuning;
+	const FYJJCombatTuning& Tuning = FYJJData::Get().Combat;
 
 	FYJJJumperState Flying = YJJTests::MakeFlying(FVector2f(0.f, 1000.f));
 	TestFalse(TEXT("Out of range"), YJJCombat::CanDashTo(Flying, Tuning, YJJTests::MakeMob(FVector2f(0.f, 3000.f), 1.f)));
@@ -341,7 +206,7 @@ bool FYJJDashRulesTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FYJJCombatPowerTest, "YJJJump.Combat.PowerFollowsGradeLevelSpeed", YJJTests::Flags)
 bool FYJJCombatPowerTest::RunTest(const FString& Parameters)
 {
-	const FYJJCombatTuning Tuning;
+	const FYJJCombatTuning& Tuning = FYJJData::Get().Combat;
 	FYJJJumperState State;
 
 	State.LaunchGrade = EYJJBounceGrade::Miss;

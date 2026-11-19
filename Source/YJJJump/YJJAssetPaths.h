@@ -16,7 +16,6 @@ namespace YJJAssetPaths
 	inline constexpr const TCHAR* ImpactSprite = TEXT("/Game/YJJJump/Sprites/SPR_Impact.SPR_Impact");
 	inline constexpr const TCHAR* SkySprite = TEXT("/Game/YJJJump/Sprites/SPR_SkyBackground.SPR_SkyBackground");
 	inline constexpr const TCHAR* CloudDecorSprite = TEXT("/Game/YJJJump/Sprites/SPR_CloudButt.SPR_CloudButt");
-	inline constexpr const TCHAR* SkySpawnTable = TEXT("/Game/YJJJump/Data/DA_SpawnTable_Sky.DA_SpawnTable_Sky");
 
 	// HUD에서 그리는 텍스처
 	inline constexpr const TCHAR* BaldEagleTexture = TEXT("/Game/YJJJump/Textures/T_MobBaldEagle.T_MobBaldEagle");
@@ -25,4 +24,21 @@ namespace YJJAssetPaths
 	inline constexpr const TCHAR* UISkullTexture = TEXT("/Game/YJJJump/Textures/T_UI_Skull.T_UI_Skull");
 	inline constexpr const TCHAR* UIArrowTexture = TEXT("/Game/YJJJump/Textures/T_UI_Arrow.T_UI_Arrow");
 	inline constexpr const TCHAR* UIFlameTexture = TEXT("/Game/YJJJump/Textures/T_UI_Flame.T_UI_Flame");
+
+	// HUD 글꼴. TTF 파일(Content 기준)을 직접 읽고, 없는 글자는 엔진 Roboto로
+	inline constexpr const TCHAR* GameFontFile = TEXT("YJJJump/Fonts/Jua-Regular.ttf");
+	inline constexpr const TCHAR* FallbackFont = TEXT("/Engine/EngineFonts/Roboto.Roboto");
+	inline constexpr const TCHAR* FallbackFontTypeface = TEXT("Bold");
+
+	// 소리 (Tools/Audio/generate_audio.py)
+	inline constexpr const TCHAR* BgmSky = TEXT("/Game/YJJJump/Audio/BGM_Sky.BGM_Sky");
+	inline constexpr const TCHAR* SfxLaunch = TEXT("/Game/YJJJump/Audio/SFX_Launch.SFX_Launch");
+	inline constexpr const TCHAR* SfxLand = TEXT("/Game/YJJJump/Audio/SFX_Land.SFX_Land");
+	inline constexpr const TCHAR* SfxPerfect = TEXT("/Game/YJJJump/Audio/SFX_Perfect.SFX_Perfect");
+	inline constexpr const TCHAR* SfxGood = TEXT("/Game/YJJJump/Audio/SFX_Good.SFX_Good");
+	inline constexpr const TCHAR* SfxMiss = TEXT("/Game/YJJJump/Audio/SFX_Miss.SFX_Miss");
+	inline constexpr const TCHAR* SfxDash = TEXT("/Game/YJJJump/Audio/SFX_Dash.SFX_Dash");
+	inline constexpr const TCHAR* SfxHit = TEXT("/Game/YJJJump/Audio/SFX_Hit.SFX_Hit");
+	inline constexpr const TCHAR* SfxKill = TEXT("/Game/YJJJump/Audio/SFX_Kill.SFX_Kill");
+	inline constexpr const TCHAR* SfxLevelUp = TEXT("/Game/YJJJump/Audio/SFX_LevelUp.SFX_LevelUp");
 }

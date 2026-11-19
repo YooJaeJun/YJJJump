@@ -24,11 +24,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Effect")
 	TSoftObjectPtr<UPaperSprite> EffectSprite;
 
-	UPROPERTY(EditAnywhere, Category = "Effect", meta = (ClampMin = "0.05"))
-	float Lifetime = 0.3f;
-
+	// 시간·크기 변화는 Tuning.csv Fx.Impact*
 	UPROPERTY(EditAnywhere, Category = "Effect")
-	float Width = 150.f;
+	float Width = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "Effect")
 	FLinearColor Color = FLinearColor::White;

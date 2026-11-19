@@ -1,0 +1,29 @@
+﻿Key,ko,en,Note
+Mob.BaldSparrow,대머리 참새,Bald Sparrow,
+Mob.BaldEagle,대머리 독수리,Bald Eagle,
+Popup.TooFar,멀어 임마,Too far,사거리 밖 몬스터를 탭
+Popup.Score,+{0},+{0},처치 점수
+Popup.LevelUp,레벨 업!! Lv {0},LEVEL UP!! Lv {0},
+Popup.Survived,-{0}  안 죽네?,-{0}  Still alive?,못 잡았을 때 피해량
+Popup.PerfectCombo,개쩔어!! x{0},INSANE!! x{0},연속 퍼펙트
+Popup.Perfect,퍼펙트!!,PERFECT!!,
+Popup.Good,굿,Good,
+Popup.Miss,응 아니야,Nope,
+Hud.Level,Lv {0},Lv {0},
+Hud.LevelTutorial,Lv 999Gp,Lv 999Gp,구골플렉스
+Hud.Exp,EXP,EXP,
+Hud.Height,{0}m,{0}m,
+Hud.Best,최고 {0}m,Best {0}m,
+Hud.PerfectChain,퍼펙트 x{0},Perfect x{0},
+Hud.Power,공격력 {0},ATK {0},
+Hud.PowerInfinite,공격력 ∞,ATK ∞,튜토리얼
+Hud.SpeedUnit,km/h,km/h,
+Hint.Drag,줄을 아래로 쭉 끌었다 놔라!,Pull the rope way down and let go!,튜토리얼
+Hint.TapMob,대머리를 탭해서 들이받아라! ({0}/{1}),Tap a baldy to ram it! ({0}/{1}),튜토리얼
+Hint.Perfect,줄에 닿는 순간 탭! 퍼펙트 내봐,Tap right when you hit the rope! Go for Perfect,튜토리얼
+Hint.LevelStolen,완벽하다. 이제 착지만 하면...,Perfect. Now just land...,튜토리얼
+Hint.Rest,줄을 아래로 끌었다 놔!,Pull the rope down and let go!,
+Banner.Line1,대머리 독수리가,The bald eagle,레벨 털림 배너
+Banner.Line2,레벨을 몽땅 훔쳐갔다!!,stole ALL your levels!!,
+Banner.Line3,Lv 999Gp  →  Lv 1,Lv 999Gp  →  Lv 1,
+Banner.Line4,다시 키워라 ㅋ,Grind it back lol,

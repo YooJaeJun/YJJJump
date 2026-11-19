@@ -30,4 +30,17 @@ namespace YJJRopeSim
 	YJJJUMP_API void PlaceOnRope(FYJJJumperState& State, const FYJJRopeTuning& Tuning, const FYJJRopeSegment& Rope, float X);
 
 	YJJJUMP_API const FYJJRopeSegment* FindRope(TConstArrayView<FYJJRopeSegment> Ropes, int32 RopeId);
+
+	// ---- Step 내부 단계 (테스트에서도 쓸 수 있게 공개)
+
+	// 최저점과 입력 사이 시간 -> 판정
+	YJJJUMP_API EYJJBounceGrade Classify(const FYJJRopeTuning& Tuning, double TimeFromBottom);
+
+	// 판정 결과를 기록하고 발사 배율을 돌려준다
+	YJJJUMP_API float ApplyGrade(FYJJJumperState& State, const FYJJRopeTuning& Tuning, EYJJBounceGrade Grade, FYJJSimEvents& OutEvents);
+
+	YJJJUMP_API void Launch(FYJJJumperState& State, const FYJJRopeTuning& Tuning, FYJJSimEvents& OutEvents);
+	YJJJUMP_API void StepAirborne(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float Dt, FYJJSimEvents& OutEvents);
+	YJJJUMP_API void StepOnRope(FYJJJumperState& State, const FYJJRopeTuning& Tuning, TConstArrayView<FYJJRopeSegment> Ropes, float Dt, FYJJSimEvents& OutEvents);
+	YJJJUMP_API void ApplyWalls(FYJJJumperState& State, const FYJJRopeTuning& Tuning, float CenterX);
 }

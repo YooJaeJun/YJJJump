@@ -3,6 +3,8 @@
 #include "Combat/YJJCombat.h"
 #include "Combat/YJJMob.h"
 #include "Combat/YJJMobSubsystem.h"
+#include "Data/YJJData.h"
+#include "Data/YJJLoc.h"
 #include "Rope/YJJRope.h"
 #include "Rope/YJJRopeSimulation.h"
 #include "Rope/YJJRopeSubsystem.h"
@@ -10,6 +12,8 @@
 #include "Visual/YJJSpriteFx.h"
 #include "Visual/YJJSpriteUtils.h"
 #include "YJJAssetPaths.h"
+#include "YJJJump.h"
+#include "YJJUnits.h"
 #include "Camera/CameraComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
@@ -25,36 +29,17 @@
 #include "PaperSpriteComponent.h"
 #include "UnrealClient.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogYJJJumper, Log, All);
-
-static TAutoConsoleVariable<int32> CVarAutoPlay(
+TAutoConsoleVariable<int32> AYJJJumper::CVarAutoPlay(
 	TEXT("yjj.AutoPlay"), 0,
 	TEXT("1이면 봇이 드래그 발사, 몬스터 탭, 퍼펙트 타이밍을 대신 입력한다 (스모크 테스트용)"));
 
-static TAutoConsoleVariable<float> CVarAutoPlayDuration(
+TAutoConsoleVariable<float> AYJJJumper::CVarAutoPlayDuration(
 	TEXT("yjj.AutoPlayDuration"), 0.f,
 	TEXT("0보다 크면 오토플레이를 이 시간(초) 동안 하고 스크린샷을 남긴 뒤 게임을 종료한다"));
 
-// 튜토리얼은 기획 보류 중이라 기본은 꺼져 있고 Lv 1부터 시작한다
-static TAutoConsoleVariable<int32> CVarTutorial(
+TAutoConsoleVariable<int32> AYJJJumper::CVarTutorial(
 	TEXT("yjj.Tutorial"), 0,
 	TEXT("1이면 Lv 999Gp 튜토리얼부터 시작 (보류 중인 기능)"));
-
-namespace
-{
-	// 화면 깊이(Y) 순서. 카메라는 +Y에서 -Y를 본다
-	constexpr float BodyDepth = 10.f;
-	constexpr float EffectDepth = 20.f;
-	constexpr float BackgroundDepth = -2000.f;
-	constexpr float CameraDistance = 3000.f;
-
-	const FLinearColor PerfectColor(1.f, 0.85f, 0.1f);
-	const FLinearColor GoodColor(0.3f, 1.f, 0.4f);
-	const FLinearColor MissColor(1.f, 0.35f, 0.3f);
-	const FLinearColor LevelUpColor(0.4f, 1.f, 1.f);
-
-	constexpr int32 TutorialKillsNeeded = 3;
-}
 
 AYJJJumper::AYJJJumper()
 {
@@ -75,17 +60,15 @@ AYJJJumper::AYJJJumper()
 	Camera->SetUsingAbsoluteRotation(true);
 	Camera->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 	Camera->SetProjectionMode(ECameraProjectionMode::Orthographic);
-	Camera->SetOrthoWidth(CameraViewHeight);
 
 	// 배경은 카메라 자식으로 붙여 화면에 고정 (카메라 앞쪽 = 로컬 +X, 스프라이트 면이 카메라를 보도록 Yaw 90)
 	Background = CreateDefaultSubobject<UPaperSpriteComponent>(TEXT("Background"));
 	Background->SetupAttachment(Camera);
 	Background->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Background->SetRelativeLocation(FVector(CameraDistance - BackgroundDepth, 0.f, 0.f));
 	Background->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
 
 	// 돌진 잔상 (반투명 돌진 포즈 몇 장)
-	for (int32 Index = 0; Index < 4; ++Index)
+	for (int32 Index = 0; Index < GhostCount; ++Index)
 	{
 		UPaperSpriteComponent* Ghost = CreateDefaultSubobject<UPaperSpriteComponent>(*FString::Printf(TEXT("DashGhost%d"), Index));
 		Ghost->SetupAttachment(Root);
@@ -108,21 +91,28 @@ void AYJJJumper::BeginPlay()
 {
 	Super::BeginPlay();
 
+	const FYJJData& Data = FYJJData::Get();
+	Tuning = Data.Rope;
+	CombatTuning = Data.Combat;
+
 	const FVector3f Start(GetActorLocation());
 	CenterX = Start.X;
 	PlaneY = Start.Y;
 	StartHeight = Start.Z;
 	CameraZ = Start.Z;
 
+	Camera->SetOrthoWidth(Data.Camera.ViewHeight);
+	Background->SetRelativeLocation(FVector(Data.Camera.Distance - Data.Camera.BackgroundDepth, 0.f, 0.f));
+
 	UPaperSprite* BodyAsset = BodySprite.LoadSynchronous();
-	YJJSpriteUtils::SetSpriteWithWidth(Body, BodyAsset, BodyWidth);
+	YJJSpriteUtils::SetSpriteWithWidth(Body, BodyAsset, Data.Player.BodyWidth);
 	BodyBaseScale = static_cast<float>(Body->GetRelativeScale3D().X);
 	BodySpriteHeight = YJJSpriteUtils::GetSpriteSize(BodyAsset).Y * BodyBaseScale;
 	BodySpriteAsset = BodyAsset;
 
 	// 돌진 포즈는 같은 픽셀 배율 기준으로 머리 크기가 평소보다 작게 그려져 있어 그만큼 키운다
 	DashSpriteAsset = DashSprite.LoadSynchronous();
-	DashBaseScale = BodyBaseScale * DashPoseScale;
+	DashBaseScale = BodyBaseScale * Data.Player.DashPoseScale;
 	UMaterialInterface* GhostMaterial = LoadObject<UMaterialInterface>(nullptr, YJJAssetPaths::TranslucentSpriteMaterial);
 	for (UPaperSpriteComponent* Ghost : Ghosts)
 	{
@@ -285,7 +275,7 @@ float AYJJJumper::ComputeAimX() const
 		return 0.f;
 	}
 
-	const float FullAimPixels = FMath::Max(ViewportWidth * FullAimScreenRatio, 1.f);
+	const float FullAimPixels = FMath::Max(ViewportWidth * FYJJData::Get().Player.FullAimScreenRatio, 1.f);
 	return FMath::Clamp((Pointer.X - static_cast<float>(CharacterScreen.X)) / FullAimPixels, -1.f, 1.f);
 }
 
@@ -317,7 +307,9 @@ bool AYJJJumper::TryTapAttack(const FVector2f& TapGamePosition)
 
 	if (!StartDash(*Tapped))
 	{
-		AddPopup(GameToWorld(Tapped->Position, EffectDepth), TEXT("멀어 임마"), FLinearColor(0.85f, 0.85f, 0.85f), 0.9f, 0.6f);
+		const FYJJData& Data = FYJJData::Get();
+		AddPopup(GameToWorld(Tapped->Position, Data.Player.EffectDepth), FYJJLoc::Get(TEXT("Popup.TooFar")), Data.Colors.TooFar,
+			Data.Player.TooFarPopupScale, Data.Player.TooFarPopupLifetime);
 	}
 	return true;
 }
@@ -329,25 +321,27 @@ bool AYJJJumper::StartDash(const FYJJMobTarget& Target)
 		return false;
 	}
 
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJPlayerTuning& Player = Data.Player;
 	const FVector2f Delta = Target.Position - SimState.Position;
-	if (FMath::Abs(Delta.X) > 1.f)
+	if (FMath::Abs(Delta.X) > Player.FacingDashThreshold)
 	{
 		Facing = Delta.X > 0.f ? 1.f : -1.f;
 	}
 	LastDashDir = Delta.IsNearlyZero() ? FVector2f(Facing, 0.f) : Delta.GetSafeNormal();
 	TrailHistory.Reset();
-	YJJAudio::Play(this, YJJAudio::ESfx::Dash, 0.7f, FMath::FRandRange(0.95f, 1.1f));
+	YJJAudio::Play(this, YJJAudio::ESfx::Dash, Data.Sound.DashVolume, FMath::FRandRange(Data.Sound.DashPitchMin, Data.Sound.DashPitchMax));
 
 	// 출발 순간 뒤쪽에 "슝" 먼지
 	FYJJSpriteFxParams Dust;
 	Dust.Frames = YJJSpriteUtils::LoadPoofFrames();
-	Dust.FrameTime = 0.1f;
-	Dust.Lifetime = 0.25f;
-	Dust.Width = 110.f;
-	Dust.StartScale = 0.5f;
-	Dust.EndScale = 1.1f;
-	Dust.Velocity = FVector(-LastDashDir.X, 0.f, -LastDashDir.Y) * 300.f;
-	AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, BodyDepth - 5.f, BodySpriteHeight * 0.5f), Dust);
+	Dust.FrameTime = Player.DustFrameTime;
+	Dust.Lifetime = Player.DustLifetime;
+	Dust.Width = Player.DustWidth;
+	Dust.StartScale = Player.DustStartScale;
+	Dust.EndScale = Player.DustEndScale;
+	Dust.Velocity = FVector(-LastDashDir.X, 0.f, -LastDashDir.Y) * Player.DustSpeed;
+	AYJJSpriteFx::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, Player.BodyDepth + Player.DustDepthOffset, BodySpriteHeight * 0.5f), Dust);
 	return true;
 }
 
@@ -382,7 +376,8 @@ bool AYJJJumper::GetLaunchPreview(FVector2f& OutVelocity) const
 
 	FYJJJumperState Preview = SimState;
 	YJJRopeSim::ReleaseDrag(Preview, Tuning);
-	for (int32 Step = 0; Step < 240 && Preview.Mode == EYJJJumperMode::OnRope; ++Step)
+	const int32 MaxSteps = FYJJData::Get().Player.LaunchPreviewMaxSteps;
+	for (int32 Step = 0; Step < MaxSteps && Preview.Mode == EYJJJumperMode::OnRope; ++Step)
 	{
 		FYJJSimEvents Ignored;
 		YJJRopeSim::Step(Preview, Tuning, Ropes->GetSegments(), CenterX, Ignored);
@@ -398,19 +393,18 @@ bool AYJJJumper::GetLaunchPreview(FVector2f& OutVelocity) const
 
 float AYJJJumper::GetHeightMeters() const
 {
-	return (SimState.Position.Y - StartHeight) / 100.f;
+	return (SimState.Position.Y - StartHeight) / YJJUnits::CmPerMeter;
 }
 
 float AYJJJumper::GetBestHeightMeters() const
 {
-	return (SimState.MaxHeightReached - StartHeight) / 100.f;
+	return (SimState.MaxHeightReached - StartHeight) / YJJUnits::CmPerMeter;
 }
 
 float AYJJJumper::GetSpeedKmh() const
 {
-	// cm/s -> km/h
 	const FVector2f Velocity = SimState.IsDashing() ? SimState.DashSavedVelocity : SimState.Velocity;
-	return Velocity.Size() * 0.036f;
+	return Velocity.Size() * YJJUnits::CmPerSecondToKmh;
 }
 
 void AYJJJumper::Tick(float DeltaSeconds)
@@ -470,7 +464,7 @@ void AYJJJumper::TickSimulation(float DeltaSeconds)
 	}
 
 	// 프레임레이트와 무관하게 같은 결과가 나오도록 고정 스텝
-	StepAccumulator = FMath::Min(StepAccumulator + DeltaSeconds, 0.25f);
+	StepAccumulator = FMath::Min(StepAccumulator + DeltaSeconds, FYJJData::Get().Player.MaxStepAccumulation);
 	while (StepAccumulator >= YJJRopeSim::FixedStep)
 	{
 		StepAccumulator -= YJJRopeSim::FixedStep;
@@ -504,39 +498,45 @@ void AYJJJumper::FinishDash()
 		Target = Mob->MakeTarget();
 	}
 
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJPlayerTuning& Player = Data.Player;
+	const FYJJSoundTuning& Sound = Data.Sound;
+
 	const FYJJHitResult Result = YJJCombat::FinishDash(SimState, CombatTuning, Mob ? &Target : nullptr);
 	// 들이받은 자세를 잠깐 유지 (히트스톱 동안 + 약간 더)
-	DashPoseTime = 0.12f;
+	DashPoseTime = Player.DashPoseHoldTime;
 	if (!Result.bHit)
 	{
 		return;
 	}
 
-	const FVector HitLocation = GameToWorld(Target.Position, EffectDepth);
+	const FVector HitLocation = GameToWorld(Target.Position, Player.EffectDepth);
 	Mob->ApplyHit(Result.Damage);
 
 	if (Result.bKilled)
 	{
-		AddShake(0.25f);
-		YJJAudio::Play(this, YJJAudio::ESfx::Kill, 0.9f, FMath::FRandRange(0.95f, 1.08f));
-		HitStopTime = HitStopDuration;
+		AddShake(Player.KillShake);
+		YJJAudio::Play(this, YJJAudio::ESfx::Kill, Sound.KillVolume, FMath::FRandRange(Sound.KillPitchMin, Sound.KillPitchMax));
+		HitStopTime = Player.HitStopDuration;
 		// 히트스톱 동안 남은 고정 스텝을 버려서 멈췄다 이어질 때 순간이동하지 않게
 		StepAccumulator = 0.f;
-		AddPopup(HitLocation, FString::Printf(TEXT("+%d"), Result.ScoreGained), PerfectColor, 1.3f);
+		AddPopup(HitLocation, FYJJLoc::Format(TEXT("Popup.Score"), { Result.ScoreGained }), Data.Colors.Perfect, Player.KillPopupScale, Player.PopupLifetime);
 		if (Result.LevelsGained > 0)
 		{
-			AddShake(0.6f);
-			YJJAudio::Play(this, YJJAudio::ESfx::LevelUp, 0.8f);
-			AYJJHitEffect::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, EffectDepth, 60.f), 260.f, LevelUpColor);
-			AddPopup(GetActorLocation() + FVector(0.f, EffectDepth, 220.f), FString::Printf(TEXT("레벨 업!! Lv %d"), SimState.Level), LevelUpColor, 1.8f, 1.4f);
+			AddShake(Player.LevelUpShake);
+			YJJAudio::Play(this, YJJAudio::ESfx::LevelUp, Sound.LevelUpVolume, 1.f);
+			AYJJHitEffect::Spawn(GetWorld(), GetActorLocation() + FVector(0.f, Player.EffectDepth, Player.LevelUpEffectHeight), Player.LevelUpEffectWidth, Data.Colors.LevelUp);
+			AddPopup(GetActorLocation() + FVector(0.f, Player.EffectDepth, Player.LevelUpPopupHeight), FYJJLoc::Format(TEXT("Popup.LevelUp"), { SimState.Level }),
+				Data.Colors.LevelUp, Player.LevelUpPopupScale, Player.LevelUpPopupLifetime);
 		}
 	}
 	else
 	{
-		AddShake(0.2f);
-		YJJAudio::Play(this, YJJAudio::ESfx::Hit, 0.8f);
-		AYJJHitEffect::Spawn(GetWorld(), HitLocation, 90.f, FLinearColor(0.8f, 0.8f, 1.f));
-		AddPopup(HitLocation, FString::Printf(TEXT("-%.1f  안 죽네?"), Result.Damage), FLinearColor(0.8f, 0.85f, 1.f), 1.f);
+		AddShake(Player.HitShake);
+		YJJAudio::Play(this, YJJAudio::ESfx::Hit, Sound.HitVolume, 1.f);
+		AYJJHitEffect::Spawn(GetWorld(), HitLocation, Player.HitEffectWidth, Data.Colors.HitEffect);
+		AddPopup(HitLocation, FYJJLoc::Format(TEXT("Popup.Survived"), { FString::Printf(TEXT("%.1f"), Result.Damage) }), Data.Colors.HitPopup,
+			Player.HitPopupScale, Player.PopupLifetime);
 	}
 }
 
@@ -544,14 +544,17 @@ void AYJJJumper::HandleEvents(const FYJJSimEvents& Events)
 {
 	UpdateTutorial(Events);
 
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJSoundTuning& Sound = Data.Sound;
 	if (Events.bLaunched)
 	{
 		// 빨라질수록 "띠요옹"도 높아진다
-		YJJAudio::Play(this, YJJAudio::ESfx::Launch, 0.8f, 0.9f + 0.06f * FMath::Min(SimState.SpeedScale, 8.f));
+		YJJAudio::Play(this, YJJAudio::ESfx::Launch, Sound.LaunchVolume,
+			Sound.LaunchPitchBase + Sound.LaunchPitchPerScale * FMath::Min(SimState.SpeedScale, Sound.LaunchPitchMaxScale));
 	}
 	if (Events.bLanded)
 	{
-		YJJAudio::Play(this, YJJAudio::ESfx::Land, 0.7f);
+		YJJAudio::Play(this, YJJAudio::ESfx::Land, Sound.LandVolume, 1.f);
 	}
 
 	if (!Events.bGraded)
@@ -563,28 +566,30 @@ void AYJJJumper::HandleEvents(const FYJJSimEvents& Events)
 	switch (Events.Grade)
 	{
 	case EYJJBounceGrade::Perfect:
-		YJJAudio::Play(this, YJJAudio::ESfx::Perfect, 0.8f, 1.f + 0.04f * FMath::Min(SimState.PerfectChain, 10));
+		YJJAudio::Play(this, YJJAudio::ESfx::Perfect, Sound.PerfectVolume, 1.f + Sound.PerfectPitchPerChain * FMath::Min(SimState.PerfectChain, Sound.PerfectPitchMaxChain));
 		break;
 	case EYJJBounceGrade::Good:
-		YJJAudio::Play(this, YJJAudio::ESfx::Good, 0.7f);
+		YJJAudio::Play(this, YJJAudio::ESfx::Good, Sound.GoodVolume, 1.f);
 		break;
 	default:
-		YJJAudio::Play(this, YJJAudio::ESfx::Miss, 0.6f);
+		YJJAudio::Play(this, YJJAudio::ESfx::Miss, Sound.MissVolume, 1.f);
 		break;
 	}
 
-	const FVector Above = GetActorLocation() + FVector(0.f, EffectDepth, 180.f);
+	const FYJJPlayerTuning& Player = Data.Player;
+	const FVector Above = GetActorLocation() + FVector(0.f, Player.EffectDepth, Player.GradePopupHeight);
 	switch (Events.Grade)
 	{
 	case EYJJBounceGrade::Perfect:
-		AddShake(0.3f);
-		AddPopup(Above, SimState.PerfectChain >= 3 ? FString::Printf(TEXT("개쩔어!! x%d"), SimState.PerfectChain) : FString(TEXT("퍼펙트!!")), PerfectColor, 1.7f);
+		AddShake(Player.PerfectShake);
+		AddPopup(Above, SimState.PerfectChain >= Player.PerfectComboPopupMin ? FYJJLoc::Format(TEXT("Popup.PerfectCombo"), { SimState.PerfectChain }) : FYJJLoc::Get(TEXT("Popup.Perfect")),
+			Data.Colors.Perfect, Player.PerfectPopupScale, Player.PopupLifetime);
 		break;
 	case EYJJBounceGrade::Good:
-		AddPopup(Above, TEXT("굿"), GoodColor, 1.3f);
+		AddPopup(Above, FYJJLoc::Get(TEXT("Popup.Good")), Data.Colors.Good, Player.GoodPopupScale, Player.PopupLifetime);
 		break;
 	default:
-		AddPopup(Above, TEXT("응 아니야"), MissColor, 1.2f);
+		AddPopup(Above, FYJJLoc::Get(TEXT("Popup.Miss")), Data.Colors.Miss, Player.MissPopupScale, Player.PopupLifetime);
 		break;
 	}
 }
@@ -600,7 +605,7 @@ void AYJJJumper::UpdateTutorial(const FYJJSimEvents& Events)
 		}
 		break;
 	case EYJJTutorialStep::TapMob:
-		if (SimState.Kills >= TutorialKillsNeeded)
+		if (SimState.Kills >= FYJJData::Get().Player.TutorialKillsNeeded)
 		{
 			TutorialStep = EYJJTutorialStep::Perfect;
 		}
@@ -625,8 +630,9 @@ void AYJJJumper::UpdateTutorial(const FYJJSimEvents& Events)
 
 void AYJJJumper::ApplyLevelStolen()
 {
+	const FYJJPlayerTuning& Player = FYJJData::Get().Player;
 	TutorialStep = EYJJTutorialStep::Done;
-	LevelStolenBannerTime = 4.5f;
+	LevelStolenBannerTime = Player.LevelStolenBannerTime;
 
 	SimState.bTutorial = false;
 	SimState.Level = 1;
@@ -644,7 +650,7 @@ void AYJJJumper::ApplyLevelStolen()
 		}
 	}
 	SimState.MaxHeightReached = SimState.Position.Y;
-	AddShake(2.f);
+	AddShake(Player.LevelStolenShake);
 }
 
 void AYJJJumper::RecoverFromFall()
@@ -655,7 +661,7 @@ void AYJJJumper::RecoverFromFall()
 		return;
 	}
 
-	if (SimState.Position.Y > Ropes->GetLowestHeight() - FallRecoverDistance)
+	if (SimState.Position.Y > Ropes->GetLowestHeight() - FYJJData::Get().Player.FallRecoverDistance)
 	{
 		return;
 	}
@@ -697,16 +703,19 @@ void AYJJJumper::SyncVisuals(float DeltaSeconds)
 		}
 	}
 
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJCameraTuning& Cam = Data.Camera;
 	const FVector2f Visible = UpdateCameraFraming(DeltaSeconds);
 
 	// 진행 방향을 미리 보여준다 (떨어질 땐 로프 쪽을 더 보이게)
 	const FVector2f Velocity = SimState.IsDashing() ? SimState.DashSavedVelocity : SimState.Velocity;
+	const float LookAheadMax = Visible.Y * Cam.LookAheadMaxRatio;
 	const float LookAhead = SimState.Mode == EYJJJumperMode::Airborne
-		? FMath::Clamp(Velocity.Y * CameraLookAheadTime, -Visible.Y * 0.38f, Visible.Y * 0.38f)
-		: Visible.Y * 0.3f;
+		? FMath::Clamp(Velocity.Y * Cam.LookAheadTime, -LookAheadMax, LookAheadMax)
+		: Visible.Y * Cam.RestLookAheadRatio;
 	const float TargetZ = SimState.Position.Y + LookAhead;
 	// 아주 빠르면 카메라도 바로 붙는다
-	const float FollowSpeed = CameraFollowSpeed * FMath::Max(SimState.SpeedScale, 1.f);
+	const float FollowSpeed = Cam.FollowSpeed * FMath::Max(SimState.SpeedScale, 1.f);
 	CameraZ = FMath::FInterpTo(CameraZ, TargetZ, DeltaSeconds, FollowSpeed);
 
 	// 처치/퍼펙트 때 화면 흔들림
@@ -714,31 +723,30 @@ void AYJJJumper::SyncVisuals(float DeltaSeconds)
 	if (ShakeTime > 0.f)
 	{
 		ShakeTime = FMath::Max(ShakeTime - DeltaSeconds, 0.f);
-		const float Amplitude = ShakeStrength * (ShakeTime / 0.25f) * Visible.Y * 0.012f;
+		const float Amplitude = ShakeStrength * (ShakeTime / Cam.ShakeDuration) * Visible.Y * Cam.ShakeAmplitudeRatio;
 		ShakeOffset = FVector(FMath::FRandRange(-1.f, 1.f) * Amplitude, 0.f, FMath::FRandRange(-1.f, 1.f) * Amplitude);
 	}
-	Camera->SetWorldLocation(FVector(CenterX, PlaneY + CameraDistance, CameraZ) + ShakeOffset);
+	Camera->SetWorldLocation(FVector(CenterX, PlaneY + Cam.Distance, CameraZ) + ShakeOffset);
 
 	// 배경은 보이는 영역을 덮고, 높이 올라갈수록 어두워진다 (하늘 -> 우주)
 	if (BackgroundSpriteSize.X > KINDA_SMALL_NUMBER && BackgroundSpriteSize.Y > KINDA_SMALL_NUMBER)
 	{
 		// 초고속 프레임에서도 빈 곳이 보이지 않도록 보이는 영역보다 훨씬 크게 덮는다
-		Background->SetRelativeScale3D(FVector(Visible.X * 4.f / BackgroundSpriteSize.X, 1.f, Visible.Y * 4.f / BackgroundSpriteSize.Y));
+		Background->SetRelativeScale3D(FVector(Visible.X * Cam.BackgroundCoverage / BackgroundSpriteSize.X, 1.f, Visible.Y * Cam.BackgroundCoverage / BackgroundSpriteSize.Y));
 
-		const float HeightM = (CameraZ - StartHeight) / 100.f;
-		const FLinearColor Low(1.f, 1.f, 1.f);
-		const FLinearColor High(0.35f, 0.35f, 0.65f);
-		const FLinearColor Space(0.07f, 0.05f, 0.14f);
-		const FLinearColor Tint = HeightM < 300.f
-			? FLinearColor::LerpUsingHSV(Low, High, FMath::Clamp(HeightM / 300.f, 0.f, 1.f))
-			: FLinearColor::LerpUsingHSV(High, Space, FMath::Clamp((HeightM - 300.f) / 700.f, 0.f, 1.f));
+		const float HeightM = (CameraZ - StartHeight) / YJJUnits::CmPerMeter;
+		const FYJJPalette& Colors = Data.Colors;
+		const FLinearColor Tint = HeightM < Cam.SkyFadeMeters
+			? FLinearColor::LerpUsingHSV(Colors.SkyLow, Colors.SkyHigh, FMath::Clamp(HeightM / Cam.SkyFadeMeters, 0.f, 1.f))
+			: FLinearColor::LerpUsingHSV(Colors.SkyHigh, Colors.SkySpace, FMath::Clamp((HeightM - Cam.SkyFadeMeters) / Cam.SpaceFadeMeters, 0.f, 1.f));
 		Background->SetSpriteColor(Tint);
 	}
 }
 
 FVector2f AYJJJumper::UpdateCameraFraming(float DeltaSeconds)
 {
-	float Aspect = 9.f / 16.f;
+	const FYJJCameraTuning& Cam = FYJJData::Get().Camera;
+	float Aspect = Cam.DefaultAspect;
 	if (const APlayerController* PC = Cast<APlayerController>(Controller))
 	{
 		int32 Width = 0;
@@ -751,12 +759,12 @@ FVector2f AYJJJumper::UpdateCameraFraming(float DeltaSeconds)
 	}
 
 	// 빨라질수록 줌 아웃해서 속도감을 키운다
-	const float TargetZoom = FMath::Clamp(1.f + 0.2f * FMath::Log2(FMath::Max(SimState.SpeedScale, 1.f)), 1.f, CameraMaxZoomOut);
-	CameraZoom = FMath::FInterpTo(CameraZoom, TargetZoom, DeltaSeconds, 2.f);
+	const float TargetZoom = FMath::Clamp(1.f + Cam.ZoomPerSpeedDoubling * FMath::Log2(FMath::Max(SimState.SpeedScale, 1.f)), 1.f, Cam.MaxZoomOut);
+	CameraZoom = FMath::FInterpTo(CameraZoom, TargetZoom, DeltaSeconds, Cam.ZoomInterpSpeed);
 
 	// 세로 시야를 기준으로 했을 때 탑이 좌우로 다 들어오면 세로 고정, 아니면(세로 폰) 가로 고정
-	const float ViewHeight = CameraViewHeight * CameraZoom;
-	const float NeedWidth = (Tuning.WallHalfWidth + CameraSideMargin) * 2.f * CameraZoom;
+	const float ViewHeight = Cam.ViewHeight * CameraZoom;
+	const float NeedWidth = (Tuning.WallHalfWidth + Cam.SideMargin) * 2.f * CameraZoom;
 	Camera->bOverrideAspectRatioAxisConstraint = true;
 	if (ViewHeight * Aspect >= NeedWidth)
 	{
@@ -772,13 +780,16 @@ FVector2f AYJJJumper::UpdateCameraFraming(float DeltaSeconds)
 
 void AYJJJumper::AddShake(float Strength)
 {
-	// 흔들리는 중이면 남은 세기를 절반 이어받아 겹친다
-	ShakeStrength = (ShakeTime > 0.f ? ShakeStrength * 0.5f : 0.f) + Strength;
-	ShakeTime = 0.25f;
+	// 흔들리는 중이면 남은 세기를 일부 이어받아 겹친다
+	const FYJJCameraTuning& Cam = FYJJData::Get().Camera;
+	ShakeStrength = (ShakeTime > 0.f ? ShakeStrength * Cam.ShakeCarryOver : 0.f) + Strength;
+	ShakeTime = Cam.ShakeDuration;
 }
 
 void AYJJJumper::AnimateBody()
 {
+	const FYJJPlayerTuning& Player = FYJJData::Get().Player;
+
 	// 돌진 중(그리고 타격 직후 잠깐)은 전용 돌진 포즈로 뿔을 목표 쪽으로 향하고 잔상을 남긴다
 	const bool bDashPose = SimState.IsDashing() || DashPoseTime > 0.f;
 	if (bDashPose && DashSpriteAsset)
@@ -790,14 +801,14 @@ void AYJJJumper::AnimateBody()
 		const float Pitch = FMath::RadiansToDegrees(FMath::Atan2(LastDashDir.Y * Facing, LastDashDir.X * Facing));
 		// 출발 순간 크게 늘어났다가 돌진하는 동안 살짝 줄어든다
 		const float DashAlpha = SimState.IsDashing() ? 1.f - SimState.DashTimeLeft / FMath::Max(SimState.DashDuration, KINDA_SMALL_NUMBER) : 1.f;
-		const float Stretch = FMath::Lerp(1.25f, 1.05f, DashAlpha);
+		const float Stretch = FMath::Lerp(Player.DashStretchStart, Player.DashStretchEnd, DashAlpha);
 		Body->SetRelativeScale3D(FVector(DashBaseScale * Stretch * Facing, DashBaseScale, DashBaseScale / Stretch));
 		Body->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
-		Body->SetRelativeLocation(FVector(0.f, BodyDepth, BodySpriteHeight * 0.5f));
+		Body->SetRelativeLocation(FVector(0.f, Player.BodyDepth, BodySpriteHeight * 0.5f));
 
 		TrailHistory.Insert(Body->GetComponentTransform(), 0);
-		TrailHistory.SetNum(FMath::Min(TrailHistory.Num(), 16));
-		TrailFade = 0.2f;
+		TrailHistory.SetNum(FMath::Min(TrailHistory.Num(), Player.TrailHistoryLength));
+		TrailFade = Player.TrailFadeTime;
 		UpdateTrail();
 		return;
 	}
@@ -811,38 +822,39 @@ void AYJJJumper::AnimateBody()
 	// 로프 위에서는 처진 만큼 찌그러지고, 공중에서는 속도만큼 늘어난다
 	float SquashX = 1.f;
 	float SquashZ = 1.f;
-	const float Pitch = 0.f;
 	if (SimState.Mode == EYJJJumperMode::Airborne)
 	{
-		const float Stretch = FMath::Clamp(FMath::Abs(SimState.Velocity.Y) / (5000.f * SimState.SpeedScale), 0.f, 0.3f);
+		const float Stretch = FMath::Clamp(FMath::Abs(SimState.Velocity.Y) / (Player.AirStretchSpeed * SimState.SpeedScale), 0.f, Player.AirStretchMax);
 		SquashZ = 1.f + Stretch;
-		SquashX = 1.f - Stretch * 0.5f;
+		SquashX = 1.f - Stretch * Player.AirSquashRatio;
 	}
 	else
 	{
-		const float Squash = FMath::Clamp(SimState.Deflection / FMath::Max(Tuning.MaxDeflection, 1.f), 0.f, 1.f) * 0.4f;
+		const float Squash = FMath::Clamp(SimState.Deflection / FMath::Max(Tuning.MaxDeflection, 1.f), 0.f, 1.f) * Player.RopeSquashMax;
 		SquashZ = 1.f - Squash;
-		SquashX = 1.f + Squash * 0.7f;
+		SquashX = 1.f + Squash * Player.RopeSquashWidenRatio;
 	}
 
 	// 좌우로 움직이면 그쪽을 본다
-	if (!SimState.IsDashing() && FMath::Abs(SimState.Velocity.X) > 50.f)
+	if (!SimState.IsDashing() && FMath::Abs(SimState.Velocity.X) > Player.FacingSpeedThreshold)
 	{
 		Facing = SimState.Velocity.X > 0.f ? 1.f : -1.f;
 	}
 
 	Body->SetRelativeScale3D(FVector(BodyBaseScale * SquashX * Facing, BodyBaseScale, BodyBaseScale * SquashZ));
-	Body->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
+	Body->SetRelativeRotation(FRotator::ZeroRotator);
 	// 발이 로프(액터 위치)에 닿도록 중심을 올린다
-	Body->SetRelativeLocation(FVector(0.f, BodyDepth, BodySpriteHeight * 0.5f * SquashZ));
+	Body->SetRelativeLocation(FVector(0.f, Player.BodyDepth, BodySpriteHeight * 0.5f * SquashZ));
 }
 
 void AYJJJumper::UpdateTrail()
 {
 	// 잔상: 몇 프레임 전 몸 위치에 반투명 돌진 포즈를 남긴다. 돌진이 끝나면 서서히 사라짐
+	const FYJJData& Data = FYJJData::Get();
+	const FYJJPlayerTuning& Player = Data.Player;
 	const float DeltaSeconds = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f;
 	TrailFade = FMath::Max(TrailFade - DeltaSeconds, 0.f);
-	const float Fade = TrailFade / 0.2f;
+	const float Fade = TrailFade / FMath::Max(Player.TrailFadeTime, KINDA_SMALL_NUMBER);
 	if (Fade <= 0.f)
 	{
 		TrailHistory.Reset();
@@ -851,15 +863,17 @@ void AYJJJumper::UpdateTrail()
 	for (int32 Index = 0; Index < Ghosts.Num(); ++Index)
 	{
 		UPaperSpriteComponent* Ghost = Ghosts[Index];
-		const int32 Sample = (Index + 1) * 2;
+		const int32 Sample = (Index + 1) * Player.GhostSampleStride;
 		const bool bVisible = Fade > 0.f && TrailHistory.IsValidIndex(Sample);
 		Ghost->SetVisibility(bVisible);
 		if (bVisible)
 		{
 			FTransform Transform = TrailHistory[Sample];
-			Transform.AddToTranslation(FVector(0.f, -2.f * (Index + 1), 0.f));
+			Transform.AddToTranslation(FVector(0.f, -Player.GhostDepthStep * (Index + 1), 0.f));
 			Ghost->SetWorldTransform(Transform);
-			Ghost->SetSpriteColor(FLinearColor(0.55f, 0.8f, 1.f, (0.5f - Index * 0.11f) * Fade));
+			FLinearColor Color = Data.Colors.DashGhost;
+			Color.A = (Player.GhostAlphaStart - Index * Player.GhostAlphaStep) * Fade;
+			Ghost->SetSpriteColor(Color);
 		}
 	}
 }
@@ -867,8 +881,7 @@ void AYJJJumper::UpdateTrail()
 void AYJJJumper::AddPopup(const FVector& Location, const FString& Text, const FLinearColor& Color, float Scale, float Lifetime)
 {
 	// 고속에서 처치가 몰려도 화면이 글자로 덮이지 않게 최근 몇 개만
-	constexpr int32 MaxPopups = 6;
-	if (Popups.Num() >= MaxPopups)
+	if (Popups.Num() >= FYJJData::Get().Player.MaxPopups)
 	{
 		Popups.RemoveAt(0);
 	}
@@ -882,10 +895,11 @@ void AYJJJumper::AddPopup(const FVector& Location, const FString& Text, const FL
 
 void AYJJJumper::TickPopups(float DeltaSeconds)
 {
+	const float RiseSpeed = FYJJData::Get().Player.PopupRiseSpeed;
 	for (FYJJPopup& Popup : Popups)
 	{
 		Popup.Age += DeltaSeconds;
-		Popup.WorldLocation.Z += 120.f * DeltaSeconds;
+		Popup.WorldLocation.Z += RiseSpeed * DeltaSeconds;
 	}
 	Popups.RemoveAll([](const FYJJPopup& Popup) { return Popup.Age >= Popup.Lifetime; });
 }
@@ -897,20 +911,22 @@ void AYJJJumper::DrawDebugText() const
 		return;
 	}
 
-	GEngine->AddOnScreenDebugMessage(1001, 0.f, FColor::White, FString::Printf(TEXT("Mode %s  Launch %.0f  Scale %.2f  Deflection %.0f  Chain %d"),
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 0.f, FColor::White, FString::Printf(TEXT("Mode %s  Launch %.0f  Scale %.2f  Deflection %.0f  Chain %d"),
 		*UEnum::GetDisplayValueAsText(SimState.Mode).ToString(), SimState.LastLaunchSpeed, SimState.SpeedScale, SimState.Deflection, SimState.PerfectChain));
 }
 
 void AYJJJumper::TickAutoPlay(float DeltaSeconds)
 {
+	const FYJJAutoPlayTuning& Bot = FYJJData::Get().AutoPlay;
 	AutoPlayTime += DeltaSeconds;
 
+	const float CenterAim = FMath::Clamp((CenterX - SimState.Position.X) / Bot.AimRange, -Bot.AimMax, Bot.AimMax);
 	if (SimState.Mode == EYJJJumperMode::Resting)
 	{
 		// 끝까지 당겨서 똑바로 발사
 		if (YJJRopeSim::BeginDrag(SimState))
 		{
-			YJJRopeSim::UpdateDrag(SimState, Tuning, FVector2f(0.f, 1000.f));
+			YJJRopeSim::UpdateDrag(SimState, Tuning, FVector2f(0.f, Bot.DragPixels));
 			YJJRopeSim::ReleaseDrag(SimState, Tuning);
 		}
 	}
@@ -918,16 +934,16 @@ void AYJJJumper::TickAutoPlay(float DeltaSeconds)
 	{
 		// 최저점 직후 프레임에 입력 -> 퍼펙트. 로프 쪽으로 살짝 중앙 복귀
 		FYJJSimEvents Events;
-		YJJRopeSim::PressBounce(SimState, Tuning, FMath::Clamp((CenterX - SimState.Position.X) / 900.f, -0.5f, 0.5f), Events);
+		YJJRopeSim::PressBounce(SimState, Tuning, CenterAim, Events);
 		HandleEvents(Events);
 	}
-	else if (SimState.Mode == EYJJJumperMode::Airborne && SimState.Velocity.Y < 0.f && SimState.SpeedScale >= 3.f
+	else if (SimState.Mode == EYJJJumperMode::Airborne && SimState.Velocity.Y < 0.f && SimState.SpeedScale >= Bot.PreTouchSpeedScale
 		&& SimState.LastPressTime < 0.0 && !SimState.IsDashing()
-		&& (SimState.Position.Y - SimState.RopeHeight) / -SimState.Velocity.Y < 0.02f)
+		&& (SimState.Position.Y - SimState.RopeHeight) / -SimState.Velocity.Y < Bot.PreTouchTime)
 	{
 		// 너무 빨라서 로프에 닿아 있는 시간이 한 프레임보다 짧다 -> 닿기 직전에 미리 누른다 (사람도 이렇게 해야 함)
 		FYJJSimEvents Events;
-		YJJRopeSim::PressBounce(SimState, Tuning, FMath::Clamp((CenterX - SimState.Position.X) / 900.f, -0.5f, 0.5f), Events);
+		YJJRopeSim::PressBounce(SimState, Tuning, CenterAim, Events);
 		HandleEvents(Events);
 	}
 	else if (SimState.Mode == EYJJJumperMode::Airborne && !SimState.IsDashing() && AutoPlayTime >= AutoPlayNextTap)
@@ -948,15 +964,15 @@ void AYJJJumper::TickAutoPlay(float DeltaSeconds)
 			}
 			if (Best && StartDash(*Best))
 			{
-				AutoPlayNextTap = AutoPlayTime + 0.12f;
+				AutoPlayNextTap = AutoPlayTime + Bot.TapInterval;
 			}
 		}
 	}
 
 	if (AutoPlayTime >= AutoPlayNextReport)
 	{
-		AutoPlayNextReport += 2.f;
-		UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] t=%.0f height=%.1fm best=%.1fm speed=%.0fkm/h scale=%.2f Lv=%d%s xp=%d score=%d kills=%d chain=%d tutorial=%s mobs=%d"),
+		AutoPlayNextReport += Bot.ReportInterval;
+		UE_LOG(LogYJJJump, Display, TEXT("[AutoPlay] t=%.0f height=%.1fm best=%.1fm speed=%.0fkm/h scale=%.2f Lv=%d%s xp=%d score=%d kills=%d chain=%d tutorial=%s mobs=%d"),
 			AutoPlayTime, GetHeightMeters(), GetBestHeightMeters(), GetSpeedKmh(), SimState.SpeedScale, SimState.Level, SimState.bTutorial ? TEXT("(999Gp)") : TEXT(""),
 			SimState.XP, SimState.Score, SimState.Kills, SimState.PerfectChain, *UEnum::GetValueAsString(TutorialStep), GetMobs() ? GetMobs()->Num() : 0);
 	}
@@ -965,17 +981,17 @@ void AYJJJumper::TickAutoPlay(float DeltaSeconds)
 	const float Duration = CVarAutoPlayDuration.GetValueOnGameThread();
 	if (Duration > 0.f)
 	{
-		const float ShotTimes[] = { Duration * 0.1f, Duration * 0.35f, Duration * 0.65f, Duration * 0.95f };
+		const float ShotTimes[] = { Duration * Bot.Shot1, Duration * Bot.Shot2, Duration * Bot.Shot3, Duration * Bot.Shot4 };
 		if (AutoPlayShotIndex < UE_ARRAY_COUNT(ShotTimes) && AutoPlayTime >= ShotTimes[AutoPlayShotIndex])
 		{
 			const FString Path = FPaths::ProjectSavedDir() / FString::Printf(TEXT("Screenshots/AutoPlay_%d.png"), AutoPlayShotIndex);
 			FScreenshotRequest::RequestScreenshot(Path, true, false);
-			UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] screenshot %s"), *Path);
+			UE_LOG(LogYJJJump, Display, TEXT("[AutoPlay] screenshot %s"), *Path);
 			AutoPlayShotIndex++;
 		}
-		if (AutoPlayTime >= Duration + 1.f)
+		if (AutoPlayTime >= Duration + Bot.ExitDelay)
 		{
-			UE_LOG(LogYJJJumper, Display, TEXT("[AutoPlay] finished best=%.1fm Lv=%d score=%d kills=%d"), GetBestHeightMeters(), SimState.Level, SimState.Score, SimState.Kills);
+			UE_LOG(LogYJJJump, Display, TEXT("[AutoPlay] finished best=%.1fm Lv=%d score=%d kills=%d"), GetBestHeightMeters(), SimState.Level, SimState.Score, SimState.Kills);
 			FPlatformMisc::RequestExit(false, TEXT("yjj.AutoPlayDuration"));
 		}
 	}

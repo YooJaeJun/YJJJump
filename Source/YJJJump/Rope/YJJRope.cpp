@@ -1,5 +1,6 @@
 #include "Rope/YJJRope.h"
 #include "Rope/YJJRopeSubsystem.h"
+#include "Data/YJJData.h"
 #include "Visual/YJJSpriteUtils.h"
 #include "YJJAssetPaths.h"
 #include "Engine/World.h"
@@ -65,12 +66,13 @@ void AYJJRope::ApplySprites()
 	StrandSpriteSize = YJJSpriteUtils::GetSpriteSize(Strand);
 
 	// 말뚝은 로프보다 앞에 그린다
+	const FYJJStageTuning& Stage = FYJJData::Get().Stage;
 	UPaperSprite* Peg = PegSprite.LoadSynchronous();
 	const float HalfWidth = Width * 0.5f;
-	YJJSpriteUtils::SetSpriteWithWidth(LeftPeg, Peg, PegWidth);
-	YJJSpriteUtils::SetSpriteWithWidth(RightPeg, Peg, PegWidth);
-	LeftPeg->SetRelativeLocation(FVector(-HalfWidth, 2.f, 0.f));
-	RightPeg->SetRelativeLocation(FVector(HalfWidth, 2.f, 0.f));
+	YJJSpriteUtils::SetSpriteWithWidth(LeftPeg, Peg, Stage.PegWidth);
+	YJJSpriteUtils::SetSpriteWithWidth(RightPeg, Peg, Stage.PegWidth);
+	LeftPeg->SetRelativeLocation(FVector(-HalfWidth, Stage.PegDepth, 0.f));
+	RightPeg->SetRelativeLocation(FVector(HalfWidth, Stage.PegDepth, 0.f));
 }
 
 FYJJRopeSegment AYJJRope::MakeSegment() const
@@ -116,7 +118,7 @@ void AYJJRope::PlaceStrand(UPaperSpriteComponent* Strand, const FVector& From, c
 	// 스프라이트(XZ 평면)를 두 점 사이에 늘려 붙인다. 피치 회전이 XZ 평면 회전
 	const FVector Delta = To - From;
 	const double Length = FMath::Max(Delta.Size(), 1.0);
-	const FVector Scale(Length / StrandSpriteSize.X, 1.0, Thickness / StrandSpriteSize.Y);
+	const FVector Scale(Length / StrandSpriteSize.X, 1.0, FYJJData::Get().Stage.RopeThickness / StrandSpriteSize.Y);
 
 	Strand->SetWorldTransform(FTransform(Delta.Rotation(), (From + To) * 0.5, Scale));
 }

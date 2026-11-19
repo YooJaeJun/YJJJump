@@ -3,12 +3,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Combat/YJJCombatTypes.h"
+#include "Data/YJJDataTypes.h"
 #include "YJJMob.generated.h"
 
+class UPaperSprite;
 class UPaperSpriteComponent;
-class UYJJMobData;
 
-// 로프 사이에 떠 있는 몹. 점퍼가 충분히 빠르게 부딪히면 처치된다
+// 로프 사이에 떠 있는 몹. 점퍼가 충분히 빠르게 부딪히면 처치된다. 수치는 Mobs.csv
 UCLASS()
 class YJJJUMP_API AYJJMob : public AActor
 {
@@ -28,11 +29,11 @@ public:
 
 	int32 GetMobId() const { return MobId; }
 	float GetHealth() const { return Health; }
-	const UYJJMobData* GetData() const { return Data; }
+	const FYJJMobRow& GetDef() const { return Def; }
 
-	// 스폰 전에 설정 (SpawnActorDeferred)
+	// Mobs.csv 행 이름. 스폰 전에 설정 (SpawnActorDeferred)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
-	TObjectPtr<UYJJMobData> Data;
+	FName MobType;
 
 	// 이동 위상 (같은 종류가 똑같이 움직이지 않도록)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
@@ -44,7 +45,7 @@ public:
 
 	// 좌우 왕복 거리 제한 (벽 안쪽에 머물도록, 스포너가 설정)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mob")
-	float MaxMoveRange = 1.0e6f;
+	float MaxMoveRange = 0.f;
 
 	bool IsDying() const { return bDying; }
 
@@ -64,6 +65,18 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Mob")
 	TObjectPtr<UPaperSpriteComponent> Sprite;
+
+	// BeginPlay에 복사해 둔 Mobs.csv 한 줄 (게임 중 다시 읽어도 살아 있는 몹은 그대로)
+	FYJJMobRow Def;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPaperSprite> IdleSprite;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPaperSprite> FlapSprite;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPaperSprite> HitSprite;
 
 	float Health = 1.f;
 	FVector Home = FVector::ZeroVector;

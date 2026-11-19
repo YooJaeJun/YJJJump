@@ -40,11 +40,17 @@ public:
 
 	// HUD 글꼴 TTF (Content 기준 상대 경로). 배민 주아체, SIL OFL 1.1 (같은 폴더 OFL.txt)
 	UPROPERTY(EditAnywhere, Category = "HUD")
-	FString GameFontFile = TEXT("YJJJump/Fonts/Jua-Regular.ttf");
+	FString GameFontFile;
 
 private:
+	static TSoftObjectPtr<UTexture2D> TexturePath(const TCHAR* Path);
+
 	TSharedPtr<const FCompositeFont> GetGameFont(const UFont* FallbackFont);
 	TSharedPtr<const FCompositeFont> GameFont;
+
+	// FCanvasTextItem은 UFont가 있어야 그려진다 (유효성/캐시 종류 판단용). 실제 글꼴은 주아체 컴포지트
+	UPROPERTY(Transient)
+	TObjectPtr<UFont> BaseFont;
 
 	enum class EAlign : uint8 { Left, Center };
 
@@ -61,7 +67,7 @@ private:
 	void DrawLevelStolenBanner(const AYJJJumper& Jumper);
 
 	// 굵은 글꼴 + 외곽선. Size는 1080p 기준 포인트
-	void DrawLabel(const FString& Text, float X, float Y, float Size, const FLinearColor& Color, EAlign Align = EAlign::Left, float Outline = 3.f, bool bVerticalCenter = true);
+	void DrawLabel(const FString& Text, float X, float Y, float Size, const FLinearColor& Color, EAlign Align, float Outline);
 	// 둥근 패널(9-슬라이스)을 Color로 틴트해서 그린다
 	void DrawPanel(float X, float Y, float W, float H, const FLinearColor& Color);
 	void DrawIcon(const TSoftObjectPtr<UTexture2D>& Icon, float X, float Y, float Size);

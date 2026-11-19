@@ -19,58 +19,62 @@ struct FYJJCombatTuning
 
 	// 탭으로 돌진할 수 있는 거리 (cm). 레벨마다 늘어난다
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
-	float BaseAttackRange = 450.f;
+	float BaseAttackRange = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
-	float AttackRangePerLevel = 20.f;
+	float AttackRangePerLevel = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
-	float MaxAttackRange = 900.f;
+	float MaxAttackRange = 0.f;
 
 	// 몬스터 반지름 밖으로 이만큼 빗나가게 탭해도 인정 (cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
-	float TapTolerance = 70.f;
+	float TapTolerance = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0.01"))
-	float DashDuration = 0.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
+	float DashDuration = 0.f;
 
 	// 돌진이 끝난 뒤 다음 돌진까지 쉬는 시간 (연타로 정신없지 않게)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0"))
-	float DashCooldown = 0.35f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dash")
+	float DashCooldown = 0.f;
 
 	// 공격력 = (1 + 레벨당 증가 * (Lv-1)) * 판정 배율 * 연속 퍼펙트 * 속도 배율^지수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float PowerPerLevel = 0.35f;
+	float PowerPerLevel = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float PerfectAttackMultiplier = 1.6f;
+	float PerfectAttackMultiplier = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float GoodAttackMultiplier = 1.25f;
+	float GoodAttackMultiplier = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float MissAttackMultiplier = 0.8f;
+	float MissAttackMultiplier = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float ChainAttackBonus = 0.1f;
+	float ChainAttackBonus = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float SpeedPowerExponent = 0.5f;
+	float SpeedPowerExponent = 0.f;
 
 	// 튜토리얼의 Lv 999Gp 장수풍뎅이는 뭐든 한 방
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
-	float TutorialPower = 1.0e9f;
+	float TutorialPower = 0.f;
+
+	// 튜토리얼 동안 사거리 계산에 쓰는 레벨
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attack")
+	int32 TutorialLevel = 0;
 
 	// 다음 레벨까지 경험치 = XPBase * Lv^XPExponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
-	float XPBase = 4.f;
+	float XPBase = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
-	float XPExponent = 1.5f;
+	float XPExponent = 0.f;
 
 	// 처치 점수에 곱해지는 연속 퍼펙트 보너스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Score")
-	float ChainScoreBonus = 0.2f;
+	float ChainScoreBonus = 0.f;
 };
 
 // 판정에 필요한 몬스터 정보 (액터와 분리해 서버에서도 같은 계산)

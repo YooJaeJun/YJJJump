@@ -1,4 +1,5 @@
 #include "Visual/YJJSpriteFx.h"
+#include "Data/YJJData.h"
 #include "Visual/YJJSpriteUtils.h"
 #include "Engine/World.h"
 #include "PaperSprite.h"
@@ -38,7 +39,7 @@ void AYJJSpriteFx::BeginPlay()
 	BaseScale = static_cast<float>(Sprite->GetRelativeScale3D().X);
 	Sprite->SetSpriteColor(Params.Color);
 	CurrentFrame = 0;
-	SetLifeSpan(Params.Lifetime + 0.1f);
+	SetLifeSpan(Params.Lifetime + FYJJData::Get().Fx.SpriteFxLifeSpanPadding);
 }
 
 void AYJJSpriteFx::Tick(float DeltaSeconds)
@@ -50,7 +51,7 @@ void AYJJSpriteFx::Tick(float DeltaSeconds)
 
 	// 프레임 넘기기
 	const int32 FrameCount = Params.Frames.Num();
-	int32 Frame = FMath::FloorToInt(Age / FMath::Max(Params.FrameTime, 0.01f));
+	int32 Frame = FMath::FloorToInt(Age / FMath::Max(Params.FrameTime, FYJJData::Get().Fx.SpriteFxMinFrameTime));
 	Frame = Params.bLoopFrames ? Frame % FrameCount : FMath::Min(Frame, FrameCount - 1);
 	if (Frame != CurrentFrame && Params.Frames.IsValidIndex(Frame))
 	{

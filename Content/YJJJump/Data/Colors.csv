@@ -1,0 +1,31 @@
+﻿Name,Value,Note
+Perfect,FFD91A,퍼펙트·점수 글자
+Good,4DFF66,
+Miss,FF594D,
+LevelUp,66FFFF,
+TooFar,D9D9D9,사거리 밖 탭
+HitEffect,CCCCFF,못 잡았을 때 타격 이펙트
+HitPopup,CCD9FF,
+DashGhost,8CCCFF,돌진 잔상 (투명도는 코드가 정함)
+SkyLow,FFFFFF,배경 틴트: 땅 근처
+SkyHigh,5959A6,높은 하늘
+SkySpace,120D24,우주
+DecorTint,FFFFFF,장식 구름
+MobHitFlash,FF4D4D,맞았을 때 번쩍
+MobDeathFlash,FFFF99,처치 번쩍 (MobHitFlash와 번갈아)
+MobDeathImpact,FFE64D,
+Ink,140F17,HUD 외곽선·진한 글자
+Yellow,FFD140,
+Cream,FFF7E6,
+Cyan,59F2FF,경험치 바
+Orange,FF8026,
+Red,FF4033,
+HudText,FFFFFF,
+HintPanel,FFFFFF,
+ExpBarBack,40384D,
+AttackIdle,999999,로프 위에서 공격 칩
+SpeedPanel,261F33D9,
+SpeedLine,FFFFFF,투명도는 코드가 정함
+RangeCircle,FFF28059,
+PreviewDot,FFFFFF,
+BannerDim,000000A6,

@@ -15,7 +15,7 @@ $Log = Join-Path $ProjectDir "Saved\Logs\RunSmoke.log"
 Remove-Item (Join-Path $ProjectDir "Saved\Screenshots\AutoPlay_*.png") -ErrorAction SilentlyContinue
 
 $Args = @(
-    "`"$Project`"", "-game", "-windowed", "-ResX=$ResX", "-ResY=$ResY", "-nosplash", "-NoSound", "-unattended",
+    "`"$Project`"", "-game", "-windowed", "-ResX=$ResX", "-ResY=$ResY", "-WinX=200", "-WinY=60", "-nosplash", "-NoSound", "-unattended",
     "-ExecCmds=`"yjj.AutoPlay 1, yjj.AutoPlayDuration $Seconds`"", "-log", "-abslog=`"$Log`""
 )
 $Process = Start-Process -FilePath $Editor -ArgumentList $Args -PassThru

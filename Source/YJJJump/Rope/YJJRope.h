@@ -29,20 +29,15 @@ public:
 	void SetContact(float ContactX, float Deflection);
 	void ClearContact();
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope", meta = (ClampMin = "50"))
-	float Width = 400.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope", meta = (ClampMin = "1"))
-	float Thickness = 14.f;
+	// 게임모드가 스폰 전에 설정 (벽에서 벽까지). 굵기·말뚝은 Tuning.csv Stage.*
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
+	float Width = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> StrandSprite;
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> PegSprite;
-
-	UPROPERTY(EditAnywhere, Category = "Visual")
-	float PegWidth = 44.f;
 
 private:
 	void ApplySprites();

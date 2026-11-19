@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "Combat/YJJCombatTypes.h"
+#include "HAL/IConsoleManager.h"
 #include "Rope/YJJRopeTypes.h"
 #include "YJJJumper.generated.h"
 
@@ -36,7 +37,7 @@ struct FYJJPopup
 	FLinearColor Color = FLinearColor::White;
 	float Scale = 1.f;
 	float Age = 0.f;
-	float Lifetime = 0.8f;
+	float Lifetime = 0.f;
 };
 
 // 로프 하나로 튕겨 오르내리며 몬스터를 탭해서 들이받는 장수풍뎅이.
@@ -92,58 +93,22 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Jumper")
 	FYJJOnBounceGraded OnBounceGraded;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jumper")
+	// 시뮬레이션 튜닝. BeginPlay에서 Tuning.csv(Rope.*, Combat.*) 값을 복사한다 (서버/클라가 같은 값)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Jumper")
 	FYJJRopeTuning Tuning;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jumper")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Jumper")
 	FYJJCombatTuning CombatTuning;
-
-	// 가장 낮은 로프보다 이만큼 떨어지면 로프로 복귀 (안전장치)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jumper")
-	float FallRecoverDistance = 2000.f;
-
-	// 캐릭터 기준 이 비율(뷰포트 너비)만큼 옆을 누르면 좌우 최대 속도
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jumper")
-	float FullAimScreenRatio = 0.3f;
 
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> BodySprite;
-
-	UPROPERTY(EditAnywhere, Category = "Visual")
-	float BodyWidth = 280.f;
 
 	// 뿔 돌진 포즈
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> DashSprite;
 
-	// 돌진 포즈 픽셀 배율 (평소 몸 대비). 돌진 그림의 머리가 평소보다 작게 그려져 있어 키운다
-	UPROPERTY(EditAnywhere, Category = "Visual")
-	float DashPoseScale = 1.45f;
-
 	UPROPERTY(EditAnywhere, Category = "Visual")
 	TSoftObjectPtr<UPaperSprite> BackgroundSprite;
-
-	// 최소한 이만큼 위아래가 보인다 (cm). 빨라질수록 넓게 보여준다
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	float CameraViewHeight = 2400.f;
-
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	float CameraMaxZoomOut = 1.6f;
-
-	// 탑 양옆 벽 바깥으로 더 보여줄 여백 (cm)
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	float CameraSideMargin = 150.f;
-
-	// 진행 방향을 미리 보여주는 정도 (속도 * 초)
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	float CameraLookAheadTime = 0.18f;
-
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	float CameraFollowSpeed = 10.f;
-
-	// 처치 순간 멈추는 시간 (초)
-	UPROPERTY(EditAnywhere, Category = "Visual")
-	float HitStopDuration = 0.14f;
 
 	// 화면 왼쪽 위 디버그 텍스트 (HUD와 별개)
 	UPROPERTY(EditAnywhere, Category = "Debug")
@@ -175,7 +140,7 @@ private:
 	FVector2f UpdateCameraFraming(float DeltaSeconds);
 	void AddShake(float Strength);
 	void TickPopups(float DeltaSeconds);
-	void AddPopup(const FVector& Location, const FString& Text, const FLinearColor& Color, float Scale = 1.f, float Lifetime = 0.8f);
+	void AddPopup(const FVector& Location, const FString& Text, const FLinearColor& Color, float Scale, float Lifetime);
 	FVector GameToWorld(const FVector2f& Game, float Depth) const;
 	void DrawDebugText() const;
 
@@ -253,4 +218,12 @@ private:
 	float AutoPlayNextReport = 0.f;
 	float AutoPlayNextTap = 0.f;
 	int32 AutoPlayShotIndex = 0;
+
+	// 돌진 잔상 컴포넌트 수 (생성자에서 만들어서 데이터 테이블 대신 상수)
+	static constexpr int32 GhostCount = 4;
+
+	static TAutoConsoleVariable<int32> CVarAutoPlay;
+	static TAutoConsoleVariable<float> CVarAutoPlayDuration;
+	// 튜토리얼은 기획 보류 중이라 기본은 꺼져 있고 Lv 1부터 시작한다
+	static TAutoConsoleVariable<int32> CVarTutorial;
 };

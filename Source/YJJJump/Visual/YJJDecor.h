@@ -23,7 +23,7 @@ public:
 	TObjectPtr<UPaperSprite> Sprite;
 
 	UPROPERTY(EditAnywhere, Category = "Decor")
-	float Width = 300.f;
+	float Width = 0.f;
 
 	UPROPERTY(EditAnywhere, Category = "Decor")
 	bool bFlip = false;

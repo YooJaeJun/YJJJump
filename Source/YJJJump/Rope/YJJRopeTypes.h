@@ -30,78 +30,89 @@ struct FYJJRopeTuning
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
-	float Gravity = 1300.f;
+	float Gravity = 0.f;
 
 	// 로프 스프링 강성 (1/s^2). 발사 속도 ≈ 처짐 * sqrt(강성)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RopeStiffness = 90.f;
+	float RopeStiffness = 0.f;
 
 	// 로프 감쇠 (1/s). 클수록 튕길 때마다 에너지를 많이 잃음
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RopeDamping = 1.0f;
+	float RopeDamping = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float MaxDeflection = 260.f;
+	float MaxDeflection = 0.f;
 
 	// 로프 위에서 좌우 속도 감쇠 (1/s)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RopeHorizontalFriction = 8.f;
+	float RopeHorizontalFriction = 0.f;
 
 	// 이 속도/처짐 이하로 떨어지면 정지 상태로 전환
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RestSpeedThreshold = 25.f;
+	float RestSpeedThreshold = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rope")
-	float RestDeflectionTolerance = 6.f;
+	float RestDeflectionTolerance = 0.f;
 
 	// 드래그: 화면 픽셀 -> 로프 처짐(cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
-	float DragPixelsToDeflection = 0.6f;
+	float DragPixelsToDeflection = 0.f;
 
 	// 드래그: 좌우 픽셀 -> 발사 좌우 속도(cm/s). 당긴 반대 방향으로 날아감
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
-	float DragPixelsToHorizontalSpeed = 6.f;
+	float DragPixelsToHorizontalSpeed = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
-	float MaxHorizontalSpeed = 1400.f;
+	float MaxHorizontalSpeed = 0.f;
+
+	// 평소 처짐보다 이만큼(cm)도 안 당겼으면 발사 취소
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Drag")
+	float DragCancelDeflection = 0.f;
 
 	// 최저점 기준 판정 윈도우 (초)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float PerfectWindow = 0.06f;
+	float PerfectWindow = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float GoodWindow = 0.15f;
+	float GoodWindow = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float PerfectMultiplier = 1.3f;
+	float PerfectMultiplier = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float GoodMultiplier = 1.12f;
+	float GoodMultiplier = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float MissMultiplier = 0.9f;
+	float MissMultiplier = 0.f;
+
+	// 연속 퍼펙트마다 발사 배율에 더하는 값과 그 최대 횟수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float PerfectChainBonusStep = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float MaxLaunchSpeed = 16000.f;
+	int32 PerfectChainBonusMax = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
+	float MaxLaunchSpeed = 0.f;
 
 	// 속도감: 발사 속도가 이 값의 몇 배인지(SpeedScale)만큼 중력은 s배, 로프 강성은 s^2배.
 	// 한 번 비행하는 시간은 거의 그대로인데 속도와 높이는 s배로 커져서 점점 미친 듯이 빨라진다
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
-	float SpeedReference = 2000.f;
+	float SpeedReference = 0.f;
 
 	// 이번 비행에서 잡은 몬스터 1마리당 다음 발사 속도 보너스 (최대 KillComboMax마리)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
-	float KillComboLaunchBonus = 0.02f;
+	float KillComboLaunchBonus = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speed")
-	int32 KillComboMax = 10;
+	int32 KillComboMax = 0;
 
 	// 좌우 벽 (중심 X 기준 반폭). 벽에 부딪히면 튕겨 나옴
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World")
-	float WallHalfWidth = 900.f;
+	float WallHalfWidth = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World")
-	float WallRestitution = 0.6f;
+	float WallRestitution = 0.f;
 };
 
 // 수평 로프 한 줄

@@ -1,0 +1,273 @@
+﻿Name,Value,Note
+Rope.Gravity,1300,중력 (cm/s^2)
+Rope.RopeStiffness,90,로프 스프링 강성 (1/s^2). 발사 속도 ≈ 처짐 x sqrt(강성)
+Rope.RopeDamping,1.0,로프 감쇠 (1/s). 클수록 튕길 때마다 에너지를 많이 잃음
+Rope.MaxDeflection,260,로프가 처질 수 있는 최대 깊이 (cm)
+Rope.RopeHorizontalFriction,8,로프 위에서 좌우 속도 감쇠 (1/s)
+Rope.RestSpeedThreshold,25,이 속도 이하로 떨어지면 정지 상태로 전환
+Rope.RestDeflectionTolerance,6,정지 판정 처짐 오차 (cm)
+Rope.DragPixelsToDeflection,0.6,드래그: 화면 픽셀 -> 로프 처짐(cm)
+Rope.DragPixelsToHorizontalSpeed,6,드래그: 좌우 픽셀 -> 발사 좌우 속도(cm/s). 당긴 반대 방향으로 날아감
+Rope.MaxHorizontalSpeed,1400,좌우 최대 속도 (cm/s)
+Rope.DragCancelDeflection,10,평소 처짐보다 이만큼(cm)도 안 당겼으면 발사 취소
+Rope.PerfectWindow,0.06,최저점 기준 퍼펙트 판정 (초)
+Rope.GoodWindow,0.15,최저점 기준 굿 판정 (초)
+Rope.PerfectMultiplier,1.3,퍼펙트 발사 배율
+Rope.GoodMultiplier,1.12,굿 발사 배율
+Rope.MissMultiplier,0.9,미스 발사 배율
+Rope.PerfectChainBonusStep,0.05,연속 퍼펙트 1회마다 발사 배율에 더하는 값
+Rope.PerfectChainBonusMax,5,연속 퍼펙트 보너스 최대 횟수
+Rope.MaxLaunchSpeed,16000,발사 속도 상한 (cm/s. 16000 ≈ 576km/h)
+Rope.SpeedReference,2000,속도 배율 기준. 발사 속도가 이 값의 s배면 중력 s배 + 로프 강성 s^2배
+Rope.KillComboLaunchBonus,0.02,이번 비행에서 잡은 몬스터 1마리당 다음 발사 속도 보너스
+Rope.KillComboMax,10,킬 콤보 보너스 최대 마리 수
+Rope.WallHalfWidth,900,좌우 벽 (중심 기준 반폭 cm). 로프 폭의 절반이기도 하다
+Rope.WallRestitution,0.6,벽에 부딪힐 때 튕기는 비율
+Combat.BaseAttackRange,450,탭으로 돌진할 수 있는 거리 (cm)
+Combat.AttackRangePerLevel,20,레벨당 사거리 증가 (cm)
+Combat.MaxAttackRange,900,사거리 상한 (cm)
+Combat.TapTolerance,70,몬스터 반지름 밖으로 이만큼(cm) 빗나가게 탭해도 인정
+Combat.DashDuration,0.2,돌진 시간 (초)
+Combat.DashCooldown,0.35,돌진이 끝난 뒤 다음 돌진까지 쉬는 시간 (초)
+Combat.PowerPerLevel,0.35,공격력 = (1 + 이 값 x (Lv-1)) x 판정 배율 x 연속 퍼펙트 x 속도 배율^지수
+Combat.PerfectAttackMultiplier,1.6,퍼펙트 발사 공격 배율
+Combat.GoodAttackMultiplier,1.25,굿 발사 공격 배율
+Combat.MissAttackMultiplier,0.8,미스 발사 공격 배율
+Combat.ChainAttackBonus,0.1,연속 퍼펙트 1회당 공격 보너스
+Combat.SpeedPowerExponent,0.5,속도 배율이 공격력에 주는 지수
+Combat.TutorialPower,1000000000,튜토리얼 Lv 999Gp 장수풍뎅이 공격력 (뭐든 한 방)
+Combat.TutorialLevel,999,튜토리얼 동안 사거리 계산에 쓰는 레벨
+Combat.XPBase,4,다음 레벨까지 경험치 = XPBase x Lv^XPExponent
+Combat.XPExponent,1.5,
+Combat.ChainScoreBonus,0.2,처치 점수에 곱해지는 연속 퍼펙트 보너스
+Player.FallRecoverDistance,2000,가장 낮은 로프보다 이만큼(cm) 떨어지면 로프로 복귀 (안전장치)
+Player.FullAimScreenRatio,0.3,캐릭터 기준 이 비율(뷰포트 너비)만큼 옆을 누르면 좌우 최대 속도
+Player.MaxStepAccumulation,0.25,한 프레임에 밀린 고정 스텝 최대 (초)
+Player.LaunchPreviewMaxSteps,240,발사 미리보기 시뮬레이션 최대 스텝
+Player.TutorialKillsNeeded,3,튜토리얼에서 잡아야 하는 몬스터 수
+Player.LevelStolenBannerTime,4.5,레벨 털림 배너 시간 (초)
+Player.BodyWidth,280,장수풍뎅이가 화면에 보이는 너비 (cm)
+Player.BodyDepth,10,화면 깊이(Y): 몸
+Player.EffectDepth,20,화면 깊이(Y): 이펙트와 글자
+Player.FacingSpeedThreshold,50,좌우 속도가 이 이상이면 그쪽을 본다 (cm/s)
+Player.FacingDashThreshold,1,돌진 목표가 좌우로 이 이상(cm) 떨어져 있으면 그쪽을 본다
+Player.AirStretchSpeed,5000,공중에서 이 속도(x 속도 배율)일 때 최대로 늘어난다
+Player.AirStretchMax,0.3,공중 세로 늘어남 최대
+Player.AirSquashRatio,0.5,세로로 늘어난 만큼 가로로 줄어드는 비율
+Player.RopeSquashMax,0.4,로프 위 최대 찌그러짐
+Player.RopeSquashWidenRatio,0.7,찌그러진 만큼 가로로 퍼지는 비율
+Player.DashPoseScale,1.45,돌진 포즈 픽셀 배율 (돌진 그림의 머리가 평소보다 작게 그려져 있어 키운다)
+Player.DashPoseHoldTime,0.12,돌진이 끝난 뒤 들이받은 자세 유지 (초)
+Player.DashStretchStart,1.25,돌진 출발 순간 늘어남
+Player.DashStretchEnd,1.05,돌진 끝 늘어남
+Player.TrailHistoryLength,16,잔상용으로 기억하는 프레임 수
+Player.TrailFadeTime,0.2,돌진이 끝나고 잔상이 사라지는 시간 (초)
+Player.GhostSampleStride,2,잔상 한 장마다 몇 프레임 전 모습을 쓰는지
+Player.GhostDepthStep,2,잔상을 뒤로 미는 깊이 (cm)
+Player.GhostAlphaStart,0.5,첫 잔상 투명도
+Player.GhostAlphaStep,0.11,잔상마다 줄어드는 투명도
+Player.DustFrameTime,0.1,돌진 출발 먼지 프레임 시간
+Player.DustLifetime,0.25,
+Player.DustWidth,110,
+Player.DustStartScale,0.5,
+Player.DustEndScale,1.1,
+Player.DustSpeed,300,먼지가 뒤로 날아가는 속도
+Player.DustDepthOffset,-5,먼지 깊이 (몸 기준)
+Player.HitStopDuration,0.14,처치 순간 멈추는 시간 (초)
+Player.LevelUpEffectHeight,60,레벨 업 이펙트 높이 (cm)
+Player.LevelUpEffectWidth,260,
+Player.HitEffectWidth,90,못 잡았을 때 타격 이펙트 너비
+Player.KillShake,0.25,화면 흔들림: 처치
+Player.LevelUpShake,0.6,화면 흔들림: 레벨 업
+Player.HitShake,0.2,화면 흔들림: 못 잡음
+Player.PerfectShake,0.3,화면 흔들림: 퍼펙트
+Player.LevelStolenShake,2,화면 흔들림: 레벨 털림
+Player.MaxPopups,6,동시에 떠 있는 글자 수 (고속에서 화면이 글자로 덮이지 않게)
+Player.PopupRiseSpeed,120,떠오르는 글자 상승 속도 (cm/s)
+Player.PopupLifetime,0.8,떠오르는 글자 기본 시간 (초)
+Player.GradePopupHeight,180,판정 글자 높이 (cm)
+Player.LevelUpPopupHeight,220,레벨 업 글자 높이 (cm)
+Player.KillPopupScale,1.3,
+Player.LevelUpPopupScale,1.8,
+Player.LevelUpPopupLifetime,1.4,
+Player.HitPopupScale,1.0,
+Player.PerfectPopupScale,1.7,
+Player.GoodPopupScale,1.3,
+Player.MissPopupScale,1.2,
+Player.TooFarPopupScale,0.9,
+Player.TooFarPopupLifetime,0.6,
+Player.PerfectComboPopupMin,3,연속 퍼펙트가 이 이상이면 개쩔어!! 표시
+Camera.Distance,3000,카메라와 게임 평면 거리 (cm)
+Camera.ViewHeight,2400,최소한 이만큼 위아래가 보인다 (cm)
+Camera.MaxZoomOut,1.6,빨라질수록 줌 아웃하는 최대 배율
+Camera.ZoomPerSpeedDoubling,0.2,속도 배율이 두 배 될 때마다 늘어나는 줌
+Camera.ZoomInterpSpeed,2,
+Camera.SideMargin,150,탑 양옆 벽 바깥으로 더 보여줄 여백 (cm)
+Camera.DefaultAspect,0.5625,뷰포트를 모를 때 화면비 (9:16)
+Camera.LookAheadTime,0.18,진행 방향을 미리 보여주는 정도 (속도 x 초)
+Camera.LookAheadMaxRatio,0.38,미리 보기 최대 (보이는 높이 비율)
+Camera.RestLookAheadRatio,0.3,로프 위에 있을 때 위쪽을 보여주는 비율
+Camera.FollowSpeed,10,카메라 따라가는 속도 (속도 배율만큼 빨라진다)
+Camera.ShakeDuration,0.25,흔들림 시간 (초)
+Camera.ShakeAmplitudeRatio,0.012,흔들림 세기 1 = 보이는 높이의 이 비율
+Camera.ShakeCarryOver,0.5,흔들리는 중 새 흔들림이 오면 남은 세기를 이만큼 이어받는다
+Camera.BackgroundDepth,-2000,화면 깊이(Y): 배경
+Camera.BackgroundCoverage,4,초고속 프레임에서도 빈 곳이 안 보이도록 배경을 보이는 영역의 몇 배로 덮을지
+Camera.SkyFadeMeters,300,이 높이(m)까지 하늘 -> 높은 하늘 색
+Camera.SpaceFadeMeters,700,그 뒤 이만큼(m) 더 올라가면 우주 색
+Sound.BgmVolume,0.45,
+Sound.LaunchVolume,0.8,로프 띠요옹
+Sound.LaunchPitchBase,0.9,
+Sound.LaunchPitchPerScale,0.06,속도 배율 1당 올라가는 피치
+Sound.LaunchPitchMaxScale,8,피치에 반영하는 속도 배율 상한
+Sound.LandVolume,0.7,
+Sound.PerfectVolume,0.8,
+Sound.PerfectPitchPerChain,0.04,연속 퍼펙트 1회당 올라가는 피치
+Sound.PerfectPitchMaxChain,10,
+Sound.GoodVolume,0.7,
+Sound.MissVolume,0.6,
+Sound.DashVolume,0.7,
+Sound.DashPitchMin,0.95,
+Sound.DashPitchMax,1.1,
+Sound.HitVolume,0.8,
+Sound.KillVolume,0.9,
+Sound.KillPitchMin,0.95,
+Sound.KillPitchMax,1.08,
+Sound.LevelUpVolume,0.8,
+MobFx.IdleBob,12,제자리 몬스터가 둥실거리는 높이 (cm)
+MobFx.MinFlapInterval,0.02,날갯짓 최소 간격 (초)
+MobFx.HitPunchDecay,4,맞고 커졌다가 돌아오는 속도 (1/s)
+MobFx.HitPunchScale,0.3,맞았을 때 커지는 비율
+MobFx.DeathFreezeTime,0.14,처치: 제자리에서 번쩍이며 떠는 시간 (히트스톱과 맞춘다)
+MobFx.DeathFlyTime,0.55,처치: 빙글빙글 날아가는 시간
+MobFx.DeathShake,14,처치: 떨림 폭 (cm)
+MobFx.DeathFreezeScaleX,1.7,
+MobFx.DeathFreezeScaleZ,1.55,
+MobFx.DeathFlashInterval,0.035,번쩍임 간격 (초)
+MobFx.DeathFlyDistance,300,옆으로 날아가는 거리 (cm)
+MobFx.DeathFlyRise,260,포물선: 위로 튀는 정도
+MobFx.DeathFlyDrop,520,포물선: 떨어지는 정도
+MobFx.DeathSpinDegrees,540,날아가며 도는 각도
+MobFx.DeathShrinkStart,1.55,
+MobFx.DeathShrinkEnd,0.9,
+MobFx.ImpactDepth,30,
+MobFx.ImpactWidthRatio,1.1,처치 별 이펙트 너비 (몬스터 너비 비율)
+MobFx.FeatherDepth,25,
+MobFx.FeatherAngleJitter,0.5,깃털 방향 흔들림 (칸 비율)
+MobFx.FeatherLifeMin,0.6,
+MobFx.FeatherLifeMax,0.9,
+MobFx.FeatherWidthRatio,0.42,
+MobFx.FeatherUpBias,0.4,깃털이 위쪽으로 더 튀는 정도
+MobFx.FeatherSpeedMin,350,
+MobFx.FeatherSpeedMax,600,
+MobFx.FeatherGravity,900,
+MobFx.FeatherSpinMax,720,
+MobFx.FeatherEndScale,0.6,
+MobFx.StarCount,3,기절 별 개수
+MobFx.StarDepth,35,
+MobFx.StarWidthRatio,0.32,
+MobFx.StarSpacingRatio,0.2,
+MobFx.StarHeightRatio,0.45,
+MobFx.StarFollowRatio,0.6,별이 날아가는 몬스터를 따라가는 정도
+MobFx.StarSpread,120,
+MobFx.StarRise,180,
+MobFx.StarSpin,540,
+MobFx.StarEndScale,0.5,
+MobFx.PoofDepth,30,
+MobFx.PoofFrameTime,0.12,마무리 뿅 연기
+MobFx.PoofLifetime,0.28,
+MobFx.PoofWidthRatio,1.5,
+MobFx.PoofStartScale,0.7,
+MobFx.PoofEndScale,1.2,
+Sky.CellHeight,450,하늘을 나누는 높이 칸 하나 (cm)
+Sky.MobChancePerCell,0.65,칸 하나에 몬스터가 생길 확률
+Sky.SecondMobChance,0.3,두 번째 몬스터가 생길 확률
+Sky.MinSpawnHeight,500,로프 바로 위는 비워 둔다 (cm)
+Sky.ScalePerMeter,0.02,1m 올라갈 때마다 몬스터 체력/보상 증가율
+Sky.SpawnBelow,2500,장수풍뎅이 아래로 항상 채워 두는 거리 (cm)
+Sky.SpawnAbove,4000,위로 항상 채워 두는 거리 (cm)
+Sky.LookAheadTime,0.5,빠를수록 진행 방향으로 더 멀리 채운다 (속도 x 초)
+Sky.DespawnMargin,2500,이만큼 더 멀어지면 지운다 (cm)
+Sky.MaxCellsPerTick,8,한 프레임에 새로 채우는 칸 수 (초고속 렉 방지)
+Sky.RespawnDelay,4,다 잡힌 칸을 다시 채우는 시간 (초)
+Sky.RespawnMinDistance,1200,장수풍뎅이가 이만큼(cm) 떨어져 있어야 다시 채운다
+Sky.MobDepthJitter,40,
+Sky.MobPatrolMaxRatio,0.5,좌우 왕복 거리 상한 (벽 반폭 비율)
+Sky.MobHeightMin,0.2,칸 안에서 몬스터 높이 범위 (칸 비율)
+Sky.MobHeightMax,0.8,
+Sky.DecorChancePerCell,0.45,장식 구름 확률
+Sky.DecorDepth,-400,화면 깊이(Y): 장식은 몬스터/로프보다 뒤
+Sky.DecorDepthJitter,400,
+Sky.DecorSpreadRatio,1.6,장식이 퍼지는 폭 (벽 반폭 비율)
+Sky.DecorWidthMin,260,
+Sky.DecorWidthMax,520,
+Sky.DecorFlipChance,0.5,
+Stage.Seed,1234,같은 시드면 같은 하늘 (랭킹 공정성)
+Stage.RopeDrop,150,시작 지점 아래 로프 높이 (cm)
+Stage.RopeThickness,14,
+Stage.PegWidth,44,로프 말뚝 너비
+Stage.PegDepth,2,말뚝은 로프보다 앞에
+Fx.ImpactLifetime,0.3,타격 별 이펙트 시간
+Fx.ImpactGrowStart,0.4,
+Fx.ImpactGrowEnd,1.2,
+Fx.ImpactGrowExponent,3,
+Fx.ImpactShrinkFrom,0.7,이 시점(비율)부터 오그라든다
+Fx.ImpactSpinDegrees,90,
+Fx.SpriteFxLifeSpanPadding,0.1,
+Fx.SpriteFxMinFrameTime,0.01,
+Hud.ReferenceHeight,1280,HUD 기준 해상도 (세로)
+Hud.ReferenceWidth,720,
+Hud.MinScale,0.45,
+Hud.MinFontSize,6,
+Hud.PanelTexturePixels,24,9-슬라이스 패널 텍스처 크기
+Hud.PanelCornerPixels,8,그대로 두는 모서리 픽셀
+Hud.PanelCorner,18,화면에 그리는 모서리 크기
+Hud.ChainHeatMax,9,연속 퍼펙트가 이만큼 더 쌓이면 가장 빨갛다
+Hud.ChainGrowSize,10,연속 퍼펙트 글자가 커지는 최대 크기
+Hud.PowerIntegerFrom,100,공격력이 이 이상이면 소수점 없이
+Hud.SpeedHeatMax,550,이 속도(km/h)면 속도계가 가장 빨갛다
+Hud.SpeedGrowSize,8,
+Hud.SpeedFlameStep,180,이 속도(km/h)마다 불꽃 아이콘 하나
+Hud.SpeedFlameMax,3,
+Hud.SpeedLineFrom,150,이 속도(km/h)부터 속도선
+Hud.SpeedLineRange,400,
+Hud.SpeedLineSeedRate,37,속도선이 바뀌는 빈도
+Hud.SpeedLineCountMin,3,
+Hud.SpeedLineCountMax,14,
+Hud.SpeedLineLengthMin,0.1,화면 높이 비율
+Hud.SpeedLineLengthMax,0.35,
+Hud.SpeedLineLengthBase,0.5,
+Hud.SpeedLineAlphaBase,0.12,
+Hud.SpeedLineAlphaGain,0.18,
+Hud.SpeedLineWidthMin,1,
+Hud.SpeedLineWidthMax,2,
+Hud.RangeSegments,48,사거리 점선 원 조각 수
+Hud.RangeLineWidth,3,
+Hud.PreviewDots,18,발사 포물선 점 수
+Hud.PreviewTimeScale,1.4,
+Hud.PreviewTimeMin,0.3,
+Hud.PreviewTimeMax,2,
+Hud.PreviewDotStart,14,
+Hud.PreviewDotEnd,6,
+Hud.PreviewDotBorder,2,
+Hud.PopupTextSize,24,떠오르는 글자 기본 크기
+Hud.PopupOutline,3,
+Hud.PopupFadeFrom,0.6,이 시점(비율)부터 흐려진다
+Hud.PopupPunch,0.5,처음에 확 커지는 정도
+Hud.PopupPunchSpeed,8,
+Hud.BannerEagleTime,3.5,레벨 털림 배너: 독수리가 화면을 가로지르는 시간
+Hud.BannerEagleBobSpeed,12,
+Hud.BannerEagleBobSize,20,
+Hud.BannerEagleAspect,1.2857,독수리 텍스처 세로/가로 (108/84)
+AutoPlay.DragPixels,1000,봇이 당기는 거리 (끝까지)
+AutoPlay.AimRange,900,중앙 복귀 조준 기준 거리
+AutoPlay.AimMax,0.5,
+AutoPlay.PreTouchSpeedScale,3,이 속도 배율 이상이면 로프에 닿기 직전에 미리 누른다
+AutoPlay.PreTouchTime,0.02,
+AutoPlay.TapInterval,0.12,
+AutoPlay.ReportInterval,2,로그 간격 (초)
+AutoPlay.ExitDelay,1,
+AutoPlay.Shot1,0.1,스크린샷 시점 (플레이 시간 비율)
+AutoPlay.Shot2,0.35,
+AutoPlay.Shot3,0.65,
+AutoPlay.Shot4,0.95,

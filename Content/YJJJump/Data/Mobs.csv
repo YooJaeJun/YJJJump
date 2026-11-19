@@ -1,0 +1,3 @@
+﻿Name,NameKey,MaxHealth,Radius,ScoreValue,XPValue,Sprite,FlapSprite,FlapInterval,HitSprite,DeathFeathers,SpriteWidth,Movement,MoveRange,MovePeriod,Note
+BaldSparrow,Mob.BaldSparrow,1,80,50,1,/Game/YJJJump/Sprites/SPR_MobBaldSparrow.SPR_MobBaldSparrow,/Game/YJJJump/Sprites/SPR_MobBaldSparrow_Flap.SPR_MobBaldSparrow_Flap,0.12,/Game/YJJJump/Sprites/SPR_MobBaldSparrow_Hit.SPR_MobBaldSparrow_Hit,6,190,Hover,40,1.6,졸병. 위아래로 둥실
+BaldEagle,Mob.BaldEagle,4,120,250,6,/Game/YJJJump/Sprites/SPR_MobBaldEagle.SPR_MobBaldEagle,/Game/YJJJump/Sprites/SPR_MobBaldEagle_Flap.SPR_MobBaldEagle_Flap,0.22,/Game/YJJJump/Sprites/SPR_MobBaldEagle_Hit.SPR_MobBaldEagle_Hit,10,300,Patrol,320,3.5,레벨 도둑. 좌우 왕복

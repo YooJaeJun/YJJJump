@@ -17,10 +17,11 @@ struct FYJJSpriteFxParams
 	UPROPERTY()
 	TArray<TObjectPtr<UPaperSprite>> Frames;
 
-	float FrameTime = 0.1f;
+	// 값은 부르는 쪽이 Tuning.csv에서 채운다 (크기 배율 1 = 그대로)
+	float FrameTime = 0.f;
 	bool bLoopFrames = false;
-	float Lifetime = 0.5f;
-	float Width = 100.f;
+	float Lifetime = 0.f;
+	float Width = 0.f;
 	FVector Velocity = FVector::ZeroVector;
 	float Gravity = 0.f;
 	float SpinDegreesPerSecond = 0.f;
